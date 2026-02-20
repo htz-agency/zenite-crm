@@ -1,0 +1,300 @@
+@custom-variant dark (&:is(.dark *));
+
+:root {
+  --font-size: 16px;
+
+  /* Blue Berry (Brand/Info) */
+  --color-blue-bg: #DCF0FF;
+  --color-blue-100: #73D0FF;
+  --color-blue-200: #07ABDE;
+  --color-blue-300: #0483AB;
+  --color-blue-400: #025E7B;
+  --color-blue-500: #013B4F;
+  --color-blue-600: #001B26;
+
+  /* Green Mint (Success) */
+  --color-green-bg: #D9F8EF;
+  --color-green-100: #4BFACB;
+  --color-green-200: #23E6B2;
+  --color-green-300: #3CCEA7;
+  --color-green-400: #135543;
+  --color-green-500: #083226;
+  --color-green-600: #02140E;
+
+  /* Red Cherry (Danger) */
+  --color-red-bg: #FFEDEB;
+  --color-red-100: #FFC6BE;
+  --color-red-200: #FF8C76;
+  --color-red-300: #ED5200;
+  --color-red-400: #B13B00;
+  --color-red-500: #782500;
+  --color-red-600: #431100;
+
+  /* Yellow Mustard (Warning) */
+  --color-yellow-bg: #FEEDCA;
+  --color-yellow-100: #F5DA82;
+  --color-yellow-200: #EAC23D;
+  --color-yellow-300: #917822;
+  --color-yellow-400: #685516;
+  --color-yellow-500: #42350A;
+  --color-yellow-600: #1F1803;
+
+  /* Purple Pie (Accent) */
+  --color-purple-bg: #E8E8FD;
+  --color-purple-100: #B0B0D6;
+  --color-purple-200: #8C8CD4;
+  --color-purple-300: #6868B1;
+  --color-purple-400: #4E4E91;
+  --color-purple-500: #31315C;
+  --color-purple-600: #14142C;
+
+  /* Cloud & Navy (Neutrals) */
+  --color-neutral-white: #FFFFFF;
+  --color-neutral-bg: #F6F7F9;
+  --color-neutral-100: #C8CFDB;
+  --color-neutral-200: #D9D9D9;
+  --color-neutral-300: #4E6987;
+  --color-neutral-400: #28415C;
+  --color-neutral-500: #122232;
+
+  --background: var(--color-neutral-bg);
+  --foreground: var(--color-neutral-500);
+  --card: var(--color-neutral-white);
+  --card-foreground: var(--color-neutral-500);
+  --popover: var(--color-neutral-white);
+  --popover-foreground: var(--color-neutral-500);
+  --primary: var(--color-blue-300);
+  --primary-foreground: var(--color-neutral-white);
+  --secondary: var(--color-blue-bg);
+  --secondary-foreground: var(--color-blue-500);
+  --muted: var(--color-neutral-bg);
+  --muted-foreground: var(--color-neutral-300);
+  --accent: var(--color-blue-bg);
+  --accent-foreground: var(--color-blue-500);
+  --destructive: var(--color-red-300);
+  --destructive-foreground: var(--color-neutral-white);
+  --border: #DDE3EC;
+  --input: transparent;
+  --input-background: var(--color-neutral-bg);
+  --switch-background: var(--color-neutral-100);
+  --font-weight-medium: 500;
+  --font-weight-normal: 400;
+  --font-weight-bold: 700;
+  --ring: var(--color-blue-200);
+  --radius: 0.625rem;
+
+  --sidebar: var(--color-blue-600);
+  --sidebar-foreground: var(--color-neutral-white);
+  --sidebar-primary: var(--color-blue-200);
+  --sidebar-primary-foreground: var(--color-neutral-white);
+  --sidebar-accent: var(--color-blue-500);
+  --sidebar-accent-foreground: var(--color-neutral-white);
+  --sidebar-border: var(--color-blue-500);
+  --sidebar-ring: var(--color-blue-200);
+}
+
+@theme inline {
+  --font-sans: 'DM Sans', sans-serif;
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-input-background: var(--input-background);
+  --color-switch-background: var(--switch-background);
+  --color-ring: var(--ring);
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+    font-family: 'DM Sans', sans-serif;
+    font-feature-settings: 'ss01', 'ss04', 'ss05', 'ss07';
+  }
+
+  html {
+    font-size: var(--font-size);
+  }
+
+  h1 {
+    font-size: 24px;
+    font-weight: 700;
+    line-height: 32px;
+    letter-spacing: -0.5px;
+  }
+
+  h2 {
+    font-size: 22px;
+    font-weight: 700;
+    line-height: 28px;
+    letter-spacing: -0.5px;
+  }
+
+  h3 {
+    font-size: 19px;
+    font-weight: 700;
+    line-height: 24px;
+    letter-spacing: -0.5px;
+  }
+
+  h4 {
+    font-size: 18px;
+    font-weight: 500;
+    line-height: 22px;
+    letter-spacing: -0.5px;
+  }
+
+  label {
+    font-size: 15px;
+    font-weight: 500;
+    line-height: 22px;
+    letter-spacing: -0.5px;
+  }
+
+  button {
+    font-size: 15px;
+    font-weight: 500;
+    line-height: 22px;
+    letter-spacing: -0.5px;
+  }
+
+  input {
+    font-size: 15px;
+    font-weight: 400;
+    line-height: 22px;
+    letter-spacing: -0.5px;
+  }
+}
+
+/* ═══════════════════════════════════════════════════════
+   HTZ Typography System — Zenite Price
+   Font: DM Sans | Feature Settings: ss01, ss04, ss05, ss07
+   ═══════════════════════════════════════════════════════ */
+
+@layer utilities {
+  /* ── Display ── */
+  .text-xltitle1 {
+    font-size: 48px;
+    font-weight: 700;
+    line-height: 56px;
+    letter-spacing: -0.5px;
+  }
+
+  .text-xltitle2 {
+    font-size: 38px;
+    font-weight: 700;
+    line-height: 46px;
+    letter-spacing: -0.5px;
+  }
+
+  .text-largetitle {
+    font-size: 29px;
+    font-weight: 700;
+    line-height: 38px;
+    letter-spacing: -0.5px;
+  }
+
+  /* ── Titles ── */
+  .text-title1 {
+    font-size: 24px;
+    font-weight: 700;
+    line-height: 32px;
+    letter-spacing: -0.5px;
+  }
+
+  .text-title2 {
+    font-size: 22px;
+    font-weight: 700;
+    line-height: 28px;
+    letter-spacing: -0.5px;
+  }
+
+  .text-title3 {
+    font-size: 19px;
+    font-weight: 700;
+    line-height: 24px;
+    letter-spacing: -0.5px;
+  }
+
+  /* ── Content ── */
+  .text-headline {
+    font-size: 18px;
+    font-weight: 500;
+    line-height: 22px;
+    letter-spacing: -0.5px;
+  }
+
+  .text-body {
+    font-size: 15px;
+    font-weight: 500;
+    line-height: 22px;
+    letter-spacing: -0.5px;
+  }
+
+  .text-callout {
+    font-size: 12px;
+    font-weight: 500;
+    line-height: 17px;
+    letter-spacing: -0.5px;
+  }
+
+  .text-callout-bold {
+    font-size: 12px;
+    font-weight: 700;
+    line-height: 20px;
+    letter-spacing: -0.5px;
+  }
+
+  .text-subheadline {
+    font-size: 15px;
+    font-weight: 400;
+    line-height: 20px;
+    letter-spacing: -0.5px;
+  }
+
+  /* ── Labels (uppercase) ── */
+  .text-label-lg {
+    font-size: 13px;
+    font-weight: 700;
+    line-height: 20px;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+  }
+
+  .text-label-sm {
+    font-size: 10px;
+    font-weight: 700;
+    line-height: 20px;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+  }
+}
