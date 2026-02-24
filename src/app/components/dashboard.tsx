@@ -185,7 +185,7 @@ export function Dashboard() {
   ];
 
   return (
-    <div className="max-w-[1200px] mx-auto">
+    <div className="max-w-[1200px] mx-auto overflow-y-auto h-full p-[10px]">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6">
         <div>

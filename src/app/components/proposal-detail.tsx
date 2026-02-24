@@ -25,6 +25,10 @@ import {
   Package,
   ArrowSquareDownRight,
   LinkSimple,
+  Building,
+  IdentificationCard,
+  SketchLogo,
+  ArrowSquareOut,
 } from "@phosphor-icons/react";
 import { toast } from "sonner";
 import { formatCurrency, services as allServicesCatalog, calculateServicePrice } from "./pricing-data";
@@ -39,7 +43,9 @@ import {
   getShareLink,
   revokeShareLink,
   buildPublicUrl,
+  getProposalCrmLinks,
   type DbProposal,
+  type ProposalCrmLinks,
 } from "./api";
 import { generateProposalPDF } from "./generate-proposal-pdf";
 import { useMultitask } from "./multitask-context";
@@ -178,6 +184,7 @@ export function ProposalDetail() {
   const [showSidebarTagMenu, setShowSidebarTagMenu] = useState(false);
   const tagMenuRef = useRef<HTMLDivElement>(null);
   const sidebarTagMenuRef = useRef<HTMLDivElement>(null);
+  const [crmLinks, setCrmLinks] = useState<ProposalCrmLinks | null>(null);
 
   /* ── Close tag menus on outside click ── */
   useEffect(() => {
@@ -209,6 +216,9 @@ export function ProposalDetail() {
             if (data.tag) setSelectedTags([data.tag]);
           }
         }
+        // Fetch CRM links
+        const links = await getProposalCrmLinks(id);
+        setCrmLinks(links);
       } catch {
         setNotFound(true);
       } finally {
@@ -352,7 +362,7 @@ export function ProposalDetail() {
   /* ════════════════════════════════════════════════════════════════ */
 
   return (
-    <div className="flex flex-col gap-[12px]">
+    <div className="h-full flex flex-col min-h-0 overflow-auto gap-[12px]">
       {/* ═══════ HEADER CARD ═══════ */}
       <div className="bg-white rounded-[15px] overflow-hidden">
         {/* Row 1: Icon + Title + Labels + Actions + Close */}
@@ -571,71 +581,71 @@ export function ProposalDetail() {
         </div>
       </div>
 
-      {/* ═══════ STATUS PIPELINE (Segmented Control) ═══════ */}
-      <div
-        className="flex items-center gap-[4px] h-[44px] p-[4px] bg-[#f6f7f9] rounded-[100px] overflow-clip relative"
-      >
-        {/* Check mark for approved / completed statuses */}
-        {allStatuses.map((s) => {
-          const isActive = proposal.status === s;
-          const sc = statusConfig[s];
-          const activeIdx = allStatuses.indexOf(proposal.status as typeof allStatuses[number]);
-          const thisIdx = allStatuses.indexOf(s);
-          const isPast = thisIdx < activeIdx;
-          return (
-            <button
-              key={s}
-              onClick={() => handleStatusChange(s)}
-              className={`group flex-1 h-[36px] rounded-[20px] flex items-center justify-center transition-all relative cursor-pointer ${
-                isActive
-                  ? "bg-[#28415C]"
-                  : "text-[#98989d] hover:text-[#4E6987] hover:bg-[#e8eaee]"
-              }`}
-              disabled={isActive}
-            >
-              {isPast ? (
-                <>
-                  <CheckCircle size={16} weight="bold" className="text-[#3CCEA7] group-hover:hidden" />
-                  <span className="text-label-sm hidden group-hover:inline">
-                    {sc.label}
-                  </span>
-                </>
-              ) : (
-                <span
-                  className={`text-label-sm ${
-                    isActive ? "text-[#f6f7f9]" : ""
-                  }`}
-                >
-                  {sc.label}
-                </span>
-              )}
-              {isActive && (
-                <div
-                  aria-hidden="true"
-                  className="absolute inset-0 pointer-events-none rounded-[20px]"
-                  style={{
-                    border: "0.5px solid rgba(200,207,219,0.6)",
-                    boxShadow: "0px 2px 4px 0px rgba(18,34,50,0.3)",
-                  }}
-                />
-              )}
-            </button>
-          );
-        })}
-        {/* Inner shadow */}
-        <div
-          className="absolute inset-0 pointer-events-none rounded-[inherit]"
-          style={{
-            boxShadow:
-              "inset 0px -0.5px 1px 0px rgba(255,255,255,0.3), inset 0px -0.5px 1px 0px rgba(255,255,255,0.25), inset 1px 1.5px 4px 0px rgba(0,0,0,0.08), inset 1px 1.5px 4px 0px rgba(0,0,0,0.1)",
-          }}
-        />
-      </div>
-
       {/* ═══════ BODY: 2-column layout ═══════ */}
-      <div className="flex flex-col gap-[12px]">
+      <div className="flex gap-[12px]">
         {/* ─── LEFT COLUMN ─── */}
-        <div className="bg-white rounded-[15px] p-[20px] flex flex-col gap-[16px]">
+        <div className="flex-1 min-w-0 bg-white rounded-[15px] p-[20px] flex flex-col gap-[16px]">
+          {/* ═══════ STATUS PIPELINE (Segmented Control) ═══════ */}
+          <div
+            className="flex items-center gap-[4px] h-[44px] p-[4px] bg-[#f6f7f9] rounded-[100px] overflow-clip relative"
+          >
+            {/* Check mark for approved / completed statuses */}
+            {allStatuses.map((s) => {
+              const isActive = proposal.status === s;
+              const sc = statusConfig[s];
+              const activeIdx = allStatuses.indexOf(proposal.status as typeof allStatuses[number]);
+              const thisIdx = allStatuses.indexOf(s);
+              const isPast = thisIdx < activeIdx;
+              return (
+                <button
+                  key={s}
+                  onClick={() => handleStatusChange(s)}
+                  className={`group flex-1 h-[36px] rounded-[20px] flex items-center justify-center transition-all relative cursor-pointer ${
+                    isActive
+                      ? "bg-[#28415C]"
+                      : "text-[#98989d] hover:text-[#4E6987] hover:bg-[#e8eaee]"
+                  }`}
+                  disabled={isActive}
+                >
+                  {isPast ? (
+                    <>
+                      <CheckCircle size={16} weight="bold" className="text-[#3CCEA7] group-hover:hidden" />
+                      <span className="text-label-sm hidden group-hover:inline">
+                        {sc.label}
+                      </span>
+                    </>
+                  ) : (
+                    <span
+                      className={`text-label-sm ${
+                        isActive ? "text-[#f6f7f9]" : ""
+                      }`}
+                    >
+                      {sc.label}
+                    </span>
+                  )}
+                  {isActive && (
+                    <div
+                      aria-hidden="true"
+                      className="absolute inset-0 pointer-events-none rounded-[20px]"
+                      style={{
+                        border: "0.5px solid rgba(200,207,219,0.6)",
+                        boxShadow: "0px 2px 4px 0px rgba(18,34,50,0.3)",
+                      }}
+                    />
+                  )}
+                </button>
+              );
+            })}
+            {/* Inner shadow */}
+            <div
+              className="absolute inset-0 pointer-events-none rounded-[inherit]"
+              style={{
+                boxShadow:
+                  "inset 0px -0.5px 1px 0px rgba(255,255,255,0.3), inset 0px -0.5px 1px 0px rgba(255,255,255,0.25), inset 1px 1.5px 4px 0px rgba(0,0,0,0.08), inset 1px 1.5px 4px 0px rgba(0,0,0,0.1)",
+              }}
+            />
+          </div>
+
           {/* Section: Serviços Inclusos */}
           <div>
             <SectionHeader
@@ -770,6 +780,177 @@ export function ProposalDetail() {
               <p className="mt-[8px] text-body text-[#4E6987] leading-[22px] pl-[33px]">{proposal.notes}</p>
             </div>
           )}
+        </div>
+
+        {/* ─── RIGHT COLUMN: Client Info Panel ─── */}
+        <div className="hidden xl:flex flex-col w-[306px] shrink-0 bg-white rounded-[16px] overflow-hidden">
+          {/* Panel header */}
+          <div className="px-[16px] pt-[16px] pb-[8px]">
+            <div className="flex items-center gap-[8px]">
+              
+              <h4 className="text-headline text-[#28415C]">Informações do Cliente</h4>
+            </div>
+          </div>
+
+          {/* Divider */}
+          <div className="mx-[16px] h-px bg-[#DDE3EC]" />
+
+          {/* Items */}
+          <div className="flex-1 overflow-y-auto p-[12px] flex flex-col gap-[4px]">
+            {/* Account */}
+            {crmLinks?.accountId ? (
+              <button
+                onClick={() => navigate(`/crm/contas/${crmLinks.accountId}`)}
+                className="flex items-center gap-[10px] px-[12px] py-[10px] rounded-[12px] hover:bg-[#f6f7f9] transition-colors group text-left w-full"
+              >
+                <div className="flex items-center justify-center size-[32px] rounded-[10px] bg-[#d9f8ef] shrink-0">
+                  <Building size={16} weight="duotone" className="text-[#3ccea7]" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p
+                    className="text-[#98989d]"
+                    style={{ fontSize: 10, fontWeight: 700, letterSpacing: 0.5, lineHeight: "16px", textTransform: "uppercase" }}
+                  >
+                    CONTA
+                  </p>
+                  <p
+                    className="text-[#28415C] truncate"
+                    style={{ fontSize: 14, fontWeight: 600, letterSpacing: -0.3, lineHeight: "20px" }}
+                  >
+                    {crmLinks.accountName || "Conta vinculada"}
+                  </p>
+                </div>
+                <ArrowSquareOut size={14} weight="bold" className="text-[#C8CFDB] group-hover:text-[#07ABDE] transition-colors shrink-0" />
+              </button>
+            ) : (
+              <div className="flex items-center gap-[10px] px-[12px] py-[10px] rounded-[12px] opacity-40">
+                <div className="flex items-center justify-center size-[32px] rounded-[10px] bg-[#f6f7f9] shrink-0">
+                  <Building size={16} weight="duotone" className="text-[#98989d]" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p
+                    className="text-[#98989d]"
+                    style={{ fontSize: 10, fontWeight: 700, letterSpacing: 0.5, lineHeight: "16px", textTransform: "uppercase" }}
+                  >
+                    CONTA
+                  </p>
+                  <p
+                    className="text-[#C8CFDB]"
+                    style={{ fontSize: 14, fontWeight: 500, letterSpacing: -0.3, lineHeight: "20px" }}
+                  >
+                    Sem vínculo
+                  </p>
+                </div>
+              </div>
+            )}
+
+            {/* Contact */}
+            {crmLinks?.contactId ? (
+              <button
+                onClick={() => navigate(`/crm/contatos`)}
+                className="flex items-center gap-[10px] px-[12px] py-[10px] rounded-[12px] hover:bg-[#f6f7f9] transition-colors group text-left w-full"
+              >
+                <div className="flex items-center justify-center size-[32px] rounded-[10px] bg-[#ffedeb] shrink-0">
+                  <IdentificationCard size={16} weight="duotone" className="text-[#ff8c76]" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p
+                    className="text-[#98989d]"
+                    style={{ fontSize: 10, fontWeight: 700, letterSpacing: 0.5, lineHeight: "16px", textTransform: "uppercase" }}
+                  >
+                    CONTATO
+                  </p>
+                  <p
+                    className="text-[#28415C] truncate"
+                    style={{ fontSize: 14, fontWeight: 600, letterSpacing: -0.3, lineHeight: "20px" }}
+                  >
+                    {crmLinks.contactName || "Contato vinculado"}
+                  </p>
+                </div>
+                <ArrowSquareOut size={14} weight="bold" className="text-[#C8CFDB] group-hover:text-[#07ABDE] transition-colors shrink-0" />
+              </button>
+            ) : (
+              <div className="flex items-center gap-[10px] px-[12px] py-[10px] rounded-[12px] opacity-40">
+                <div className="flex items-center justify-center size-[32px] rounded-[10px] bg-[#f6f7f9] shrink-0">
+                  <IdentificationCard size={16} weight="duotone" className="text-[#98989d]" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p
+                    className="text-[#98989d]"
+                    style={{ fontSize: 10, fontWeight: 700, letterSpacing: 0.5, lineHeight: "16px", textTransform: "uppercase" }}
+                  >
+                    CONTATO
+                  </p>
+                  <p
+                    className="text-[#C8CFDB]"
+                    style={{ fontSize: 14, fontWeight: 500, letterSpacing: -0.3, lineHeight: "20px" }}
+                  >
+                    Sem vínculo
+                  </p>
+                </div>
+              </div>
+            )}
+
+            {/* Opportunity */}
+            {crmLinks?.opportunityId ? (
+              <button
+                onClick={() => navigate(`/crm/oportunidades/${crmLinks.opportunityId}`)}
+                className="flex items-center gap-[10px] px-[12px] py-[10px] rounded-[12px] hover:bg-[#f6f7f9] transition-colors group text-left w-full"
+              >
+                <div className="flex items-center justify-center size-[32px] rounded-[10px] bg-[#dcf0ff] shrink-0">
+                  <SketchLogo size={16} weight="duotone" className="text-[#07abde]" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p
+                    className="text-[#98989d]"
+                    style={{ fontSize: 10, fontWeight: 700, letterSpacing: 0.5, lineHeight: "16px", textTransform: "uppercase" }}
+                  >
+                    OPORTUNIDADE
+                  </p>
+                  <p
+                    className="text-[#28415C] truncate"
+                    style={{ fontSize: 14, fontWeight: 600, letterSpacing: -0.3, lineHeight: "20px" }}
+                  >
+                    {crmLinks.opportunityName || "Oportunidade vinculada"}
+                  </p>
+                </div>
+                <ArrowSquareOut size={14} weight="bold" className="text-[#C8CFDB] group-hover:text-[#07ABDE] transition-colors shrink-0" />
+              </button>
+            ) : (
+              <div className="flex items-center gap-[10px] px-[12px] py-[10px] rounded-[12px] opacity-40">
+                <div className="flex items-center justify-center size-[32px] rounded-[10px] bg-[#f6f7f9] shrink-0">
+                  <SketchLogo size={16} weight="duotone" className="text-[#98989d]" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p
+                    className="text-[#98989d]"
+                    style={{ fontSize: 10, fontWeight: 700, letterSpacing: 0.5, lineHeight: "16px", textTransform: "uppercase" }}
+                  >
+                    OPORTUNIDADE
+                  </p>
+                  <p
+                    className="text-[#C8CFDB]"
+                    style={{ fontSize: 14, fontWeight: 500, letterSpacing: -0.3, lineHeight: "20px" }}
+                  >
+                    Sem vínculo
+                  </p>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Bottom CTA */}
+          <div className="p-[12px] pt-0">
+            <button
+              onClick={() => navigate(`/price/editar-proposta/${proposal.id}`)}
+              className="flex items-center justify-center gap-[4px] h-[36px] w-full rounded-[500px] bg-[#f6f7f9] text-[#28415c] cursor-pointer hover:bg-[#DCF0FF] hover:text-[#07ABDE] transition-colors"
+            >
+              <PencilSimple size={14} weight="bold" />
+              <span style={{ fontSize: 13, fontWeight: 600, letterSpacing: -0.3, lineHeight: "20px" }}>
+                Editar vínculos
+              </span>
+            </button>
+          </div>
         </div>
       </div>
     </div>

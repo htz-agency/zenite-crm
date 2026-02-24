@@ -18,22 +18,16 @@ import {
   Trash,
   Link as LinkIcon,
   CopySimple,
-  Phone,
-  Envelope,
-  ChatCircle,
-  CalendarBlank,
-  CheckCircle,
-  NoteBlank,
   Plus,
-  FunnelSimple,
   GearSix,
   ListBullets,
   ArrowSquareDownRight,
-  MagnifyingGlass,
+  FunnelSimple,
   Buildings,
   SketchLogo,
   CircleNotch,
   Sparkle,
+  Invoice,
 } from "@phosphor-icons/react";
 import { motion, AnimatePresence } from "motion/react";
 import imgAvatar from "figma:asset/d5fb6bc139a3da5bc43ab0601942a4cf33722fa1.png";
@@ -52,15 +46,26 @@ import { getFieldOptions, getFieldType } from "./crm-field-config";
 import { useCustomFields } from "./use-custom-fields";
 import { useFieldVisibility } from "./use-field-visibility";
 import { AccountSearchField } from "./account-search-field";
+import { CrmLinkedProposals } from "./crm-linked-proposals";
+import {
+  fontFeature,
+  type Activity,
+  type CallRecord,
+  activityConfig,
+  VerticalDivider,
+  ActionButton,
+  ActivityItem,
+  SectionToggle,
+  StageBar,
+  CallLogPanel,
+} from "./crm-detail-shared";
 
 /* ------------------------------------------------------------------ */
 /*  Types & Config                                                     */
 /* ------------------------------------------------------------------ */
 
 type ContactStage = "prospeccao" | "ativo" | "inativo" | "parceiro";
-type ContactTab = "detalhes" | "oportunidades" | "contrato";
-
-const fontFeature = { fontFeatureSettings: "'ss01', 'ss04', 'ss05', 'ss07'" };
+type ContactTab = "detalhes" | "oportunidades" | "propostas" | "contrato";
 
 interface ContactData {
   id: string;
@@ -153,36 +158,13 @@ const STAGES: { key: ContactStage; label: string }[] = [
 const TABS: { key: ContactTab; label: string; icon: React.ComponentType<any> }[] = [
   { key: "detalhes", label: "Detalhes", icon: ListBullets },
   { key: "oportunidades", label: "Oportunidades", icon: SketchLogo },
+  { key: "propostas", label: "Propostas", icon: Invoice },
   { key: "contrato", label: "Contrato", icon: LinkIcon },
 ];
 
 /* ------------------------------------------------------------------ */
-/*  Mock data (activities & calls — same placeholder pattern as Op)    */
+/*  Mock data (activities & calls)                                     */
 /* ------------------------------------------------------------------ */
-
-interface Activity {
-  id: string;
-  type: "compromisso" | "tarefa" | "ligacao" | "nota" | "mensagem" | "email";
-  label: string;
-  date: string;
-  group: string;
-}
-
-interface CallRecord {
-  id: string;
-  phone: string;
-  date: string;
-  avatarUrl: string;
-}
-
-const activityConfig: Record<Activity["type"], { icon: React.ComponentType<any>; bg: string; color: string }> = {
-  compromisso: { icon: CalendarBlank, bg: "#FFEDEB", color: "#FF8C76" },
-  tarefa: { icon: CheckCircle, bg: "#E8E8FD", color: "#8C8CD4" },
-  ligacao: { icon: Phone, bg: "#D9F8EF", color: "#3CCEA7" },
-  nota: { icon: NoteBlank, bg: "#FEEDCA", color: "#EAC23D" },
-  mensagem: { icon: ChatCircle, bg: "#DCF0FF", color: "#07ABDE" },
-  email: { icon: Envelope, bg: "#DDE3EC", color: "#4E6987" },
-};
 
 const mockActivities: Activity[] = [
   { id: "a1", type: "compromisso", label: "Compromisso", date: "04/01/2024 09:30", group: "FUTURO" },
@@ -197,296 +179,9 @@ const mockCalls: CallRecord[] = [
   { id: "c3", phone: "+55 98899-8899", date: "04/07/2023 09:30", avatarUrl: "" },
 ];
 
-/* ------------------------------------------------------------------ */
-/*  Small reusable components                                          */
-/* ------------------------------------------------------------------ */
 
-function VerticalDivider() {
-  return (
-    <div className="flex h-[20px] items-center justify-center shrink-0 w-[1.5px]">
-      <svg className="block w-[1.5px] h-[20px]" fill="none" viewBox="0 0 1.5 20">
-        <line stroke="#DDE3EC" strokeLinecap="round" strokeWidth="1.5" x1="0.75" y1="0.75" x2="0.75" y2="19.25" />
-      </svg>
-    </div>
-  );
-}
 
-function ActionButton({ children, onClick }: { children: React.ReactNode; onClick?: () => void }) {
-  return (
-    <button
-      onClick={onClick}
-      className="flex items-center justify-center size-[32px] rounded-full hover:bg-[#DCF0FF] active:bg-[#07abde] active:text-[#f6f7f9] transition-colors text-[#28415c] cursor-pointer"
-    >
-      {children}
-    </button>
-  );
-}
 
-/* ------------------------------------------------------------------ */
-/*  Stage Control                                                      */
-/* ------------------------------------------------------------------ */
-
-function StageControl({ stage, onStageChange }: { stage: ContactStage; onStageChange: (s: ContactStage) => void }) {
-  const activeIdx = STAGES.findIndex((s) => s.key === stage);
-
-  return (
-    <div className="flex items-center gap-[4px] h-[44px] p-[4px] bg-[#f6f7f9] rounded-[100px] overflow-clip relative">
-      {STAGES.map((s, idx) => {
-        const isActive = s.key === stage;
-        const isPast = idx < activeIdx;
-        return (
-          <button
-            key={s.key}
-            onClick={() => onStageChange(s.key)}
-            className={`group/stage flex-1 h-[36px] rounded-[20px] flex items-center justify-center transition-all duration-200 relative cursor-pointer z-[1] ${
-              isActive
-                ? "cursor-default"
-                : "text-[#98989d] hover:text-[#4E6987] hover:bg-[#e8eaee]"
-            }`}
-          >
-            {isActive && (
-              <motion.div
-                layoutId="ct-stage-active"
-                className="absolute inset-0 bg-[#431100] rounded-[20px]"
-                transition={{ type: "spring", stiffness: 500, damping: 35, mass: 0.8 }}
-                style={{
-                  border: "0.5px solid rgba(200,207,219,0.6)",
-                  boxShadow: "0px 2px 4px 0px rgba(18,34,50,0.3)",
-                }}
-              />
-            )}
-            {isPast ? (
-              <div className="relative z-[1] flex items-center justify-center">
-                <CheckCircle
-                  size={16}
-                  weight="bold"
-                  className="text-[#3CCEA7] transition-opacity duration-200 opacity-100 group-hover/stage:opacity-0 absolute"
-                />
-                <span
-                  className="opacity-0 group-hover/stage:opacity-100 transition-opacity duration-200 uppercase whitespace-nowrap"
-                  style={{ fontSize: 10, fontWeight: 700, letterSpacing: 0.5, lineHeight: "20px", ...fontFeature }}
-                >
-                  {s.label}
-                </span>
-              </div>
-            ) : (
-              <span
-                className={`relative z-[1] uppercase whitespace-nowrap ${isActive ? "text-[#f6f7f9]" : ""}`}
-                style={{ fontSize: 10, fontWeight: 700, letterSpacing: 0.5, lineHeight: "20px", ...fontFeature }}
-              >
-                {s.label}
-              </span>
-            )}
-          </button>
-        );
-      })}
-      <div
-        className="absolute inset-0 pointer-events-none rounded-[inherit] z-[2]"
-        style={{
-          boxShadow:
-            "inset 0px -0.5px 1px 0px rgba(255,255,255,0.3), inset 0px -0.5px 1px 0px rgba(255,255,255,0.25), inset 1px 1.5px 4px 0px rgba(0,0,0,0.08), inset 1px 1.5px 4px 0px rgba(0,0,0,0.1)",
-        }}
-      />
-    </div>
-  );
-}
-
-/* ------------------------------------------------------------------ */
-/*  Section Toggle                                                     */
-/* ------------------------------------------------------------------ */
-
-function SectionToggle({
-  title,
-  expanded,
-  onToggle,
-  children,
-}: {
-  title: string;
-  expanded: boolean;
-  onToggle: () => void;
-  children?: React.ReactNode;
-}) {
-  return (
-    <div>
-      <button
-        onClick={onToggle}
-        className="flex items-center gap-[15px] cursor-pointer py-[4px] group/section"
-      >
-        <div className="flex items-center justify-center size-[24px] text-[#28415c]">
-          {expanded ? <CaretDown size={18} weight="bold" /> : <CaretRight size={18} weight="bold" />}
-        </div>
-        <span
-          className="text-[#28415c]"
-          style={{ fontSize: 18, fontWeight: 500, letterSpacing: -0.5, lineHeight: "22px", ...fontFeature }}
-        >
-          {title}
-        </span>
-      </button>
-      <AnimatePresence>
-        {expanded && (
-          <motion.div
-            initial={{ height: 0, opacity: 0 }}
-            animate={{ height: "auto", opacity: 1 }}
-            exit={{ height: 0, opacity: 0 }}
-            transition={{ duration: 0.2, ease: [0.4, 0, 0.2, 1] }}
-            className="overflow-hidden"
-          >
-            {children}
-          </motion.div>
-        )}
-      </AnimatePresence>
-    </div>
-  );
-}
-
-/* ------------------------------------------------------------------ */
-/*  Activity Item                                                      */
-/* ------------------------------------------------------------------ */
-
-function ActivityItem({ activity }: { activity: Activity }) {
-  const config = activityConfig[activity.type];
-  const Icon = config.icon;
-  return (
-    <div className="flex gap-[4px] items-center px-[12px] py-[6px] rounded-[8px] hover:bg-[#f6f7f9] transition-colors w-full">
-      <button className="flex items-center justify-center size-[28px] shrink-0 text-[#4e6987] cursor-pointer rounded-full hover:bg-[#dde3ec] transition-colors">
-        <CaretRight size={14} weight="bold" />
-      </button>
-      <div
-        className="flex items-center justify-center size-[28px] rounded-[8px] shrink-0"
-        style={{ backgroundColor: config.bg }}
-      >
-        <Icon size={17} weight="duotone" style={{ color: config.color }} />
-      </div>
-      <span
-        className="text-[#4e6987] flex-1"
-        style={{ fontSize: 15, fontWeight: 500, letterSpacing: -0.5, lineHeight: "22px", ...fontFeature }}
-      >
-        {activity.label}
-      </span>
-      <span
-        className="text-[#4e6987] text-right shrink-0"
-        style={{ fontSize: 10, fontWeight: 700, letterSpacing: 0.5, lineHeight: "20px", textTransform: "uppercase", ...fontFeature }}
-      >
-        {activity.date}
-      </span>
-    </div>
-  );
-}
-
-/* ------------------------------------------------------------------ */
-/*  Call Log Panel                                                     */
-/* ------------------------------------------------------------------ */
-
-function CallLogPanel({ calls }: { calls: CallRecord[] }) {
-  const [callTab, setCallTab] = useState<"feitas" | "recebidas" | "perdidas">("feitas");
-
-  return (
-    <div className="flex flex-col h-full">
-      <div className="p-[12px] pb-0">
-        <div
-          className="flex gap-[4px] h-[44px] items-center justify-center overflow-hidden p-[4px] rounded-[100px] bg-[#f6f7f9] relative"
-          style={{
-            boxShadow:
-              "inset 0px -0.5px 1px 0px rgba(255,255,255,0.3), inset 0px -0.5px 1px 0px rgba(255,255,255,0.25), inset 1px 1.5px 4px 0px rgba(0,0,0,0.08), inset 1px 1.5px 4px 0px rgba(0,0,0,0.1)",
-          }}
-        >
-          {(["feitas", "recebidas", "perdidas"] as const).map((tab) => {
-            const isActive = callTab === tab;
-            return (
-              <button
-                key={tab}
-                onClick={() => setCallTab(tab)}
-                className={`flex-1 h-[36px] flex items-center justify-center rounded-[20px] cursor-pointer transition-colors duration-200 relative z-[1] ${
-                  isActive ? "" : "text-[#98989d] hover:text-[#4E6987] hover:bg-[#e8eaee]"
-                }`}
-              >
-                {isActive && (
-                  <motion.div
-                    layoutId="ct-call-tab-active"
-                    className="absolute inset-0 bg-[#431100] rounded-[20px]"
-                    transition={{ type: "spring", stiffness: 500, damping: 35, mass: 0.8 }}
-                    style={{
-                      border: "0.5px solid rgba(200,207,219,0.6)",
-                      boxShadow: "0px 2px 4px 0px rgba(18,34,50,0.3)",
-                    }}
-                  />
-                )}
-                <span
-                  className={`relative z-[1] uppercase ${isActive ? "text-[#f6f7f9]" : ""}`}
-                  style={{ fontSize: 10, fontWeight: 700, letterSpacing: 0.5, lineHeight: "20px", ...fontFeature }}
-                >
-                  {tab}
-                </span>
-              </button>
-            );
-          })}
-        </div>
-      </div>
-
-      <div className="flex items-center gap-[6px] px-[20px] py-[12px]">
-        <div className="flex items-center gap-[6px] flex-1 min-w-0 cursor-pointer">
-          <div className="flex items-center justify-center size-[28px] rounded-[8px] bg-[#d9f8ef] shrink-0">
-            <Phone size={17} weight="duotone" className="text-[#3ccea7]" />
-          </div>
-          <span
-            className="text-[#4e6987]"
-            style={{ fontSize: 18, fontWeight: 500, letterSpacing: -0.5, lineHeight: "22px", ...fontFeature }}
-          >
-            Ligacoes
-          </span>
-          <CaretDown size={14} weight="bold" className="text-[#4e6987] shrink-0" />
-        </div>
-        <button className="flex items-center justify-center size-[28px] rounded-full text-[#28415c] hover:bg-[#f6f7f9] transition-colors cursor-pointer">
-          <MagnifyingGlass size={17} weight="duotone" />
-        </button>
-        <button className="flex items-center justify-center size-[28px] rounded-full text-[#28415c] hover:bg-[#f6f7f9] transition-colors cursor-pointer">
-          <FunnelSimple size={17} weight="duotone" />
-        </button>
-      </div>
-
-      <div className="flex-1 overflow-auto px-[4px]">
-        <div className="flex flex-col">
-          {calls.map((call) => (
-            <div key={call.id} className="flex items-center gap-[10px] px-[12px] py-[8px] rounded-[8px] hover:bg-[#f6f7f9] transition-colors cursor-pointer">
-              <button className="flex items-center justify-center size-[28px] shrink-0 text-[#4e6987] cursor-pointer rounded-full hover:bg-[#dde3ec] transition-colors">
-                <CaretRight size={14} weight="bold" />
-              </button>
-              <div className="relative shrink-0 size-[35px]">
-                <img alt="" className="block size-full rounded-full object-cover" src={imgAvatar} />
-              </div>
-              <div className="flex flex-col flex-1 min-w-0">
-                <span
-                  className="text-[#4e6987] truncate"
-                  style={{ fontSize: 12, fontWeight: 500, letterSpacing: -0.5, lineHeight: "17px", ...fontFeature }}
-                >
-                  {call.phone}
-                </span>
-                <span
-                  className="text-[#4e6987] uppercase"
-                  style={{ fontSize: 8, fontWeight: 700, letterSpacing: 0.5, lineHeight: "20px", ...fontFeature }}
-                >
-                  {call.date}
-                </span>
-              </div>
-              <button className="flex items-center justify-center size-[28px] shrink-0 text-[#28415c] cursor-pointer rounded-full hover:bg-[#dde3ec] transition-colors">
-                <Phone size={17} weight="duotone" />
-              </button>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      <div className="p-[16px] flex justify-center">
-        <button className="flex items-center justify-center gap-[4px] h-[40px] px-[20px] rounded-[500px] bg-[#FFEDEB] text-[#431100] cursor-pointer hover:bg-[#ffc6be] transition-colors">
-          <Phone size={16} weight="bold" />
-          <span style={{ fontSize: 15, fontWeight: 500, letterSpacing: -0.5, lineHeight: "22px", ...fontFeature }}>
-            Fazer uma ligacao
-          </span>
-        </button>
-      </div>
-    </div>
-  );
-}
 
 /* ------------------------------------------------------------------ */
 /*  Activity Panel                                                     */
@@ -1058,7 +753,7 @@ export function CrmContactDetail() {
                 {/* Stage Control (only in detail tab) */}
                 {activeTab === "detalhes" && (
                   <div className="mb-[24px]">
-                    <StageControl stage={stage} onStageChange={handleStageChange} />
+                    <StageBar stages={STAGES} current={stage} onChange={handleStageChange} layoutId="ct-stage-active" activeColor="#431100" />
                   </div>
                 )}
 
@@ -1086,6 +781,7 @@ export function CrmContactDetail() {
                       />
                     )}
                     {activeTab === "oportunidades" && <TabOportunidades />}
+                    {activeTab === "propostas" && <CrmLinkedProposals contactId={id} />}
                     {activeTab === "contrato" && <TabContrato />}
                   </motion.div>
                 </AnimatePresence>
@@ -1096,7 +792,7 @@ export function CrmContactDetail() {
 
         {/* RIGHT COLUMN */}
         <div className="hidden xl:flex flex-col w-[306px] shrink-0 bg-white rounded-[16px] overflow-hidden">
-          {rightPanel === "calls" && <CallLogPanel calls={mockCalls} />}
+          {rightPanel === "calls" && <CallLogPanel calls={mockCalls} layoutId="ct-call-tab" activeColor="#431100" ctaBg="#FFEDEB" ctaText="#431100" ctaHover="#ffc6be" />}
           {rightPanel === "activities" && <ActivityPanel activities={mockActivities} />}
         </div>
       </div>

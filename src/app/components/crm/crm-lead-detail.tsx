@@ -11,12 +11,6 @@ import {
   Trash,
   Link as LinkIcon,
   CopySimple,
-  Phone,
-  Envelope,
-  ChatCircle,
-  CalendarBlank,
-  CheckCircle,
-  NoteBlank,
   Sparkle,
   Trophy,
   Plus,
@@ -26,6 +20,7 @@ import {
   ArrowSquareRight,
   ArrowSquareDownRight,
   CircleNotch,
+  CheckCircle,
 } from "@phosphor-icons/react";
 import { motion, AnimatePresence } from "motion/react";
 import imgAvatar from "figma:asset/d5fb6bc139a3da5bc43ab0601942a4cf33722fa1.png";
@@ -47,6 +42,17 @@ import { DraggableFieldGrid, FieldDndProvider } from "./draggable-field-grid";
 import { getFieldOptions, getFieldType } from "./crm-field-config";
 import { useCustomFields } from "./use-custom-fields";
 import { useFieldVisibility } from "./use-field-visibility";
+import {
+  fontFeature,
+  type Activity,
+  activityConfig,
+  VerticalDivider,
+  ActionButton,
+  ActivityItem,
+  SectionToggle,
+  StageBar,
+  ScoreCard,
+} from "./crm-detail-shared";
 
 
 /* ------------------------------------------------------------------ */
@@ -54,8 +60,6 @@ import { useFieldVisibility } from "./use-field-visibility";
 /* ------------------------------------------------------------------ */
 
 type LeadStage = "novo" | "em_contato" | "qualificacao" | "descartado" | "qualificado";
-
-const fontFeature = { fontFeatureSettings: "'ss01', 'ss04', 'ss05', 'ss07'" };
 
 interface LeadData {
   id: string;
@@ -105,23 +109,6 @@ interface LeadData {
   mktUltimaConversao: string;   // datetime – last conversion date/time
   mktCanal: string;              // picklist – channel (Google Ads, Meta Ads, LinkedIn Ads)
 }
-
-interface Activity {
-  id: string;
-  type: "compromisso" | "tarefa" | "ligacao" | "nota" | "mensagem" | "email";
-  label: string;
-  date: string;
-  group: string;
-}
-
-const activityConfig: Record<Activity["type"], { icon: React.ComponentType<any>; bg: string; color: string }> = {
-  compromisso: { icon: CalendarBlank, bg: "#FFEDEB", color: "#FF8C76" },
-  tarefa: { icon: CheckCircle, bg: "#E8E8FD", color: "#8C8CD4" },
-  ligacao: { icon: Phone, bg: "#D9F8EF", color: "#3CCEA7" },
-  nota: { icon: NoteBlank, bg: "#FEEDCA", color: "#EAC23D" },
-  mensagem: { icon: ChatCircle, bg: "#DCF0FF", color: "#07ABDE" },
-  email: { icon: Envelope, bg: "#DDE3EC", color: "#4E6987" },
-};
 
 const STAGES: { key: LeadStage; label: string }[] = [
   { key: "novo", label: "NOVO" },
@@ -227,236 +214,6 @@ const leadTagOptions: LeadTagOption[] = (() => {
     };
   });
 })();
-
-/* ------------------------------------------------------------------ */
-/*  Small reusable components                                          */
-/* ------------------------------------------------------------------ */
-
-function VerticalDivider() {
-  return (
-    <div className="flex h-[20px] items-center justify-center shrink-0 w-[1.5px]">
-      
-    </div>
-  );
-}
-
-function ActionButton({ children, onClick }: { children: React.ReactNode; onClick?: () => void }) {
-  return (
-    <button
-      onClick={onClick}
-      className="flex items-center justify-center size-[32px] rounded-full hover:bg-[#DCF0FF] active:bg-[#07abde] active:text-[#f6f7f9] transition-colors text-[#28415c] cursor-pointer"
-    >
-      {children}
-    </button>
-  );
-}
-
-/* ------------------------------------------------------------------ */
-/*  Segmented Control Pipeline                                         */
-/* ------------------------------------------------------------------ */
-
-function PipelineControl({ stage, onStageChange }: { stage: LeadStage; onStageChange: (s: LeadStage) => void }) {
-  const activeIdx = STAGES.findIndex((s) => s.key === stage);
-
-  return (
-    <div
-      className="flex items-center gap-[4px] h-[44px] p-[4px] bg-[#f6f7f9] rounded-[100px] overflow-clip relative"
-    >
-      {STAGES.map((s, idx) => {
-        const isActive = s.key === stage;
-        const isPast = idx < activeIdx;
-        return (
-          <button
-            key={s.key}
-            onClick={() => onStageChange(s.key)}
-            className={`group/stage flex-1 h-[36px] rounded-[20px] flex items-center justify-center transition-all duration-200 relative cursor-pointer z-[1] ${
-              isActive
-                ? "cursor-default"
-                : "text-[#98989d] hover:text-[#4E6987] hover:bg-[#e8eaee]"
-            }`}
-          >
-            {/* Sliding active pill */}
-            {isActive && (
-              <motion.div
-                layoutId="crm-pipeline-active"
-                className="absolute inset-0 bg-[#28415C] rounded-[20px]"
-                transition={{ type: "spring", stiffness: 500, damping: 35, mass: 0.8 }}
-                style={{
-                  border: "0.5px solid rgba(200,207,219,0.6)",
-                  boxShadow: "0px 2px 4px 0px rgba(18,34,50,0.3)",
-                }}
-              />
-            )}
-            {isPast ? (
-              <div className="relative z-[1] flex items-center justify-center">
-                <CheckCircle
-                  size={16}
-                  weight="bold"
-                  className="text-[#3CCEA7] transition-opacity duration-200 opacity-100 group-hover/stage:opacity-0 absolute"
-                />
-                <span
-                  className="opacity-0 group-hover/stage:opacity-100 transition-opacity duration-200 uppercase whitespace-nowrap"
-                  style={{ fontSize: 10, fontWeight: 700, letterSpacing: 0.5, lineHeight: "20px", ...fontFeature }}
-                >
-                  {s.label}
-                </span>
-              </div>
-            ) : (
-              <span
-                className={`relative z-[1] uppercase whitespace-nowrap ${isActive ? "text-[#f6f7f9]" : ""}`}
-                style={{ fontSize: 10, fontWeight: 700, letterSpacing: 0.5, lineHeight: "20px", ...fontFeature }}
-              >
-                {s.label}
-              </span>
-            )}
-          </button>
-        );
-      })}
-      {/* Inner shadow */}
-      <div
-        className="absolute inset-0 pointer-events-none rounded-[inherit] z-[2]"
-        style={{
-          boxShadow:
-            "inset 0px -0.5px 1px 0px rgba(255,255,255,0.3), inset 0px -0.5px 1px 0px rgba(255,255,255,0.25), inset 1px 1.5px 4px 0px rgba(0,0,0,0.08), inset 1px 1.5px 4px 0px rgba(0,0,0,0.1)",
-        }}
-      />
-    </div>
-  );
-}
-
-/* ------------------------------------------------------------------ */
-/*  Lead Score Card                                                    */
-/* ------------------------------------------------------------------ */
-
-function LeadScoreCard({ score, label }: { score: number; label: string }) {
-  return (
-    <div
-      className="flex items-center gap-[16px] rounded-[10px] bg-[#f6f7f9] px-[20px] py-[10px]"
-      style={{ border: "1px solid rgba(200,207,219,0.6)" }}
-    >
-      <div className="flex flex-col gap-[2px]">
-        <div className="flex items-center gap-[10px]">
-          <Trophy size={24} weight="duotone" className="text-[#28415c]" />
-          <span
-            className="text-[#28415c]"
-            style={{ fontSize: 18, fontWeight: 500, letterSpacing: -0.4, lineHeight: "normal", ...fontFeature }}
-          >
-            Lead<br />Score
-          </span>
-        </div>
-      </div>
-      <div className="flex flex-col items-center">
-        <div className="relative flex items-center justify-center size-[60px]">
-          <svg className="absolute inset-0 size-full" fill="none" viewBox="0 0 60 60">
-            <circle cx="30" cy="30" r="29.5" fill="#FEEDCA" stroke="url(#scoreGrad)" />
-            <defs>
-              <linearGradient id="scoreGrad" gradientUnits="userSpaceOnUse" x1="4.2" x2="32.8" y1="0" y2="65.8">
-                <stop stopColor="#C8CFDB" stopOpacity="0.6" />
-                <stop offset="0.333" stopColor="white" stopOpacity="0.01" />
-                <stop offset="0.667" stopColor="white" stopOpacity="0.01" />
-                <stop offset="1" stopColor="#C8CFDB" stopOpacity="0.1" />
-              </linearGradient>
-            </defs>
-          </svg>
-          <span
-            className="relative text-[#917822] text-center"
-            style={{ fontSize: 28, fontWeight: 400, letterSpacing: 1, fontFamily: "'DM Serif Text', serif" }}
-          >
-            {score}
-          </span>
-        </div>
-        
-      </div>
-    </div>
-  );
-}
-
-/* ------------------------------------------------------------------ */
-/*  Activity Item                                                      */
-/* ------------------------------------------------------------------ */
-
-function ActivityItem({ activity }: { activity: Activity }) {
-  const config = activityConfig[activity.type];
-  const Icon = config.icon;
-
-  return (
-    <div className="flex gap-[4px] items-center px-[12px] py-[6px] rounded-[8px] hover:bg-[#f6f7f9] transition-colors w-full">
-      {/* Expand arrow */}
-      <button className="flex items-center justify-center size-[28px] shrink-0 text-[#4e6987] cursor-pointer rounded-full hover:bg-[#dde3ec] transition-colors">
-        <CaretRight size={14} weight="bold" />
-      </button>
-      {/* Type icon */}
-      <div
-        className="flex items-center justify-center size-[28px] rounded-[8px] shrink-0"
-        style={{ backgroundColor: config.bg }}
-      >
-        <Icon size={17} weight="duotone" style={{ color: config.color }} />
-      </div>
-      {/* Label */}
-      <span
-        className="text-[#4e6987] flex-1"
-        style={{ fontSize: 15, fontWeight: 500, letterSpacing: -0.5, lineHeight: "22px", ...fontFeature }}
-      >
-        {activity.label}
-      </span>
-      {/* Date */}
-      <span
-        className="text-[#4e6987] text-right shrink-0"
-        style={{ fontSize: 10, fontWeight: 700, letterSpacing: 0.5, lineHeight: "20px", textTransform: "uppercase", ...fontFeature }}
-      >
-        {activity.date}
-      </span>
-    </div>
-  );
-}
-
-/* ------------------------------------------------------------------ */
-/*  Section Toggle                                                     */
-/* ------------------------------------------------------------------ */
-
-function SectionToggle({
-  title,
-  expanded,
-  onToggle,
-  children,
-}: {
-  title: string;
-  expanded: boolean;
-  onToggle: () => void;
-  children?: React.ReactNode;
-}) {
-  return (
-    <div>
-      <button
-        onClick={onToggle}
-        className="flex items-center gap-[15px] cursor-pointer py-[4px] group/section"
-      >
-        <div className="flex items-center justify-center size-[24px] text-[#28415c]">
-          {expanded ? <CaretDown size={18} weight="bold" /> : <CaretRight size={18} weight="bold" />}
-        </div>
-        <span
-          className="text-[#28415c]"
-          style={{ fontSize: 18, fontWeight: 500, letterSpacing: -0.5, lineHeight: "22px", ...fontFeature }}
-        >
-          {title}
-        </span>
-      </button>
-      <AnimatePresence>
-        {expanded && (
-          <motion.div
-            initial={{ height: 0, opacity: 0 }}
-            animate={{ height: "auto", opacity: 1 }}
-            exit={{ height: 0, opacity: 0 }}
-            transition={{ duration: 0.2, ease: [0.4, 0, 0.2, 1] }}
-            className="overflow-hidden"
-          >
-            {children}
-          </motion.div>
-        )}
-      </AnimatePresence>
-    </div>
-  );
-}
 
 /* ------------------------------------------------------------------ */
 /*  Main Component                                                     */
@@ -1014,11 +771,11 @@ export function CrmLeadDetail() {
         {/* Row 2: Summary bar */}
         <div className="flex items-end gap-[12px] pb-[16px]">
           <div className="grid grid-cols-[repeat(auto-fill,minmax(150px,1fr))] gap-[12px] flex-1">
-            <EditableField label={fl("lead_role")} value={lead.role} editable={false} />
-            <EditableField label={fl("lead_company")} value={lead.company} editable={false} />
-            <EditableField label={fl("lead_phone")} value={lead.phone} fieldType="phone" editable={false} />
-            <EditableField label={fl("lead_last_activity")} value={lead.lastActivity} ai editable={false} />
-            <EditableField label={fl("lead_response_time")} value={lead.responseTime} ai editable={false} />
+            <EditableField key="sumRole" label={fl("lead_role")} value={lead.role} editable={false} />
+            <EditableField key="sumCompany" label={fl("lead_company")} value={lead.company} editable={false} />
+            <EditableField key="sumPhone" label={fl("lead_phone")} value={lead.phone} fieldType="phone" editable={false} />
+            <EditableField key="sumLastActivity" label={fl("lead_last_activity")} value={lead.lastActivity} ai editable={false} />
+            <EditableField key="sumResponseTime" label={fl("lead_response_time")} value={lead.responseTime} ai editable={false} />
           </div>
           {stage !== "qualificado" && (
             <div className="flex items-center gap-[8px] shrink-0 pb-[2px]">
@@ -1042,7 +799,7 @@ export function CrmLeadDetail() {
           <div className="p-[18px]">
             {/* Pipeline Control */}
             <div className="mb-[24px]">
-              <PipelineControl stage={stage} onStageChange={handleStageChange} />
+              <StageBar stages={STAGES} current={stage} onChange={handleStageChange} layoutId="crm-pipeline-active" />
             </div>
 
             {stage === "qualificado" && (
@@ -1250,14 +1007,14 @@ export function CrmLeadDetail() {
                       </div>
 
                       {/* Lead Score Card */}
-                      <LeadScoreCard score={lead.score} label={lead.scoreLabel} />
+                      <ScoreCard score={lead.score} label={"Lead\nScore"} icon={Trophy} iconColor="#28415c" fillColor="#FEEDCA" textColor="#917822" gradientId="leadScoreGrad" />
 
                       {/* Progress */}
-                      <EditableField label={fl("lead_qual_progress")} value={String(lead.qualificationProgress)} fieldType="percentage" ai editable={false} />
+                      <EditableField key="qualProgress" label={fl("lead_qual_progress")} value={String(lead.qualificationProgress)} fieldType="percentage" ai editable={false} />
 
                       {/* Qualification Questions */}
                       {lead.qualificationQuestions.map((q, i) => (
-                        <EditableField key={i} label={q.question} value={q.answer} onChange={(val) => {
+                        <EditableField key={`qual-${i}-${q.question}`} label={q.question} value={q.answer} onChange={(val) => {
                           setLead((prev) => {
                             const qs = [...prev.qualificationQuestions];
                             qs[i] = { ...qs[i], answer: val };

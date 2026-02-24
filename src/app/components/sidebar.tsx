@@ -8,6 +8,7 @@ import {
   FilePlus,
   Tag,
   CurrencyDollar,
+  Invoice,
   CaretDown,
   CaretUp,
   X,
@@ -28,6 +29,7 @@ import {
   CheckFat,
   Buildings,
   SignOut,
+  PaintBrush,
 } from "@phosphor-icons/react";
 import { useState, useEffect, useRef, type ReactNode } from "react";
 import { AnimatePresence, motion } from "motion/react";
@@ -87,6 +89,7 @@ const railItems: RailItem[] = [
         title: "Propostas",
         items: [
           { to: "/price/propostas", icon: <ListBullets size={18} weight="duotone" />, activeIcon: <ListBullets size={18} weight="fill" />, label: "Todas Propostas" },
+          { to: "/price/template-proposta", icon: <PaintBrush size={18} weight="duotone" />, activeIcon: <PaintBrush size={18} weight="fill" />, label: "Template Público" },
         ],
       },
       {
@@ -176,7 +179,7 @@ interface ZeniteModule {
 }
 
 const zeniteModules: ZeniteModule[] = [
-  { id: "prc", name: "Price", abbr: "PRC", icon: CurrencyDollar, bg: "#DCF0FF", color: "#07ABDE", route: "/price" },
+  { id: "prc", name: "Price", abbr: "PRC", icon: Invoice, bg: "#DCF0FF", color: "#07ABDE", route: "/price" },
   { id: "crm", name: "CRM", abbr: "CRM", icon: UsersThree, bg: "#DCF0FF", color: "#0483AB", route: "/crm" },
   { id: "mkt", name: "Marketing", abbr: "MKT", icon: Megaphone, bg: "#FEEDCA", color: "#917822" },
   { id: "syc", name: "Sync", abbr: "SYC", icon: ArrowsClockwise, bg: "#D9F8EF", color: "#3CCEA7" },

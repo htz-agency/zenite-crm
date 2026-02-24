@@ -258,7 +258,7 @@ export function NewProposal() {
   };
 
   return (
-    <div className="-m-[20px] min-h-full bg-[#f6f7f9] rounded-t-[16px] p-[20px]">
+    <div className="min-h-full bg-[#f6f7f9] rounded-t-[16px] p-[20px] overflow-y-auto">
     <div className="max-w-[1200px] mx-auto">
       {/* Header — white card */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-[20px] bg-white rounded-[16px] px-[20px] pt-[20px] pb-[16px]">

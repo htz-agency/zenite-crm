@@ -1,6 +1,6 @@
 import { CrmAccountDetail } from "./components/crm/crm-account-detail";
 import { CrmSearchResults } from "./components/crm/crm-search-results";
-import { createElement, useEffect } from "react";
+import { useEffect } from "react";
 import { createBrowserRouter, useNavigate } from "react-router";
 import { Layout } from "./components/layout";
 import { Dashboard } from "./components/dashboard";
@@ -29,11 +29,13 @@ import { CrmOpportunityDetail } from "./components/crm/crm-opportunity-detail";
 import { CrmPipeSettings } from "./components/crm/crm-pipe-settings";
 import { CrmSettingsObjLeads } from "./components/crm/crm-settings-obj-leads";
 import { CrmContacts } from "./components/crm/crm-contacts";
+import { CrmContactDetail } from "./components/crm/crm-contact-detail";
 import { CrmAccounts } from "./components/crm/crm-accounts";
 import { LoginPage } from "./components/login-page";
 import { RequireAuth } from "./components/require-auth";
 import { RootLayout } from "./components/root-layout";
 import { PublicProposal } from "./components/public-proposal";
+import { ProposalTemplateEditor } from "./components/proposal-template-editor";
 
 /** Catch-all component that redirects any unmatched route to /price */
 function RedirectToPrice() {
@@ -72,6 +74,7 @@ export const router = createBrowserRouter([
               { path: "editar-proposta/:id", Component: NewProposal },
               { path: "propostas", Component: Proposals },
               { path: "propostas/:id", Component: ProposalDetail },
+              { path: "template-proposta", Component: ProposalTemplateEditor },
               { path: "tabela-precos", Component: PriceTable },
               { path: "ajustes", Component: Settings },
               { path: "atalho", Component: Shortcuts },
@@ -100,7 +103,13 @@ export const router = createBrowserRouter([
                   { path: ":id", Component: CrmOpportunityDetail },
                 ],
               },
-              { path: "contatos", Component: CrmContacts },
+              {
+                path: "contatos",
+                children: [
+                  { index: true, Component: CrmContacts },
+                  { path: ":id", Component: CrmContactDetail },
+                ],
+              },
               {
                 path: "contas",
                 children: [

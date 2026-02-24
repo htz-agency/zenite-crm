@@ -612,7 +612,7 @@ export function Proposals() {
   for (let i = start; i <= end; i++) pageRange.push(i);
 
   return (
-    <div className="h-full flex flex-col">
+    <div className="h-full flex flex-col p-[10px] bg-[#ffffff]">
       {/* ═══════ HEADER ═══════ */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-5">
         {/* Left: title */}

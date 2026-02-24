@@ -205,6 +205,61 @@ export async function saveProposalCrmLinks(proposalId: string, links: ProposalCr
   });
 }
 
+// Proposals linked to CRM entities
+export async function getProposalsByCrm(params: { accountId?: string; opportunityId?: string; contactId?: string }): Promise<DbProposal[]> {
+  const searchParams = new URLSearchParams();
+  if (params.accountId) searchParams.set("accountId", params.accountId);
+  if (params.opportunityId) searchParams.set("opportunityId", params.opportunityId);
+  if (params.contactId) searchParams.set("contactId", params.contactId);
+  return apiFetch<DbProposal[]>(`/proposals/by-crm?${searchParams.toString()}`);
+}
+
+// Proposal Template Config
+export interface ProposalTemplateConfig {
+  companyName: string;
+  logoUrl: string;
+  headerBgColor: string;
+  accentColor: string;
+  introText: string;
+  footerText: string;
+  ctaApproveText: string;
+  ctaRejectText: string;
+  showServices: boolean;
+  showFinancialSummary: boolean;
+  showResponseButtons: boolean;
+  showMethodology: boolean;
+  heroTitle: string;
+  heroSubtitle: string;
+}
+
+export const DEFAULT_TEMPLATE: ProposalTemplateConfig = {
+  companyName: "Zenite · HTZ Agency",
+  logoUrl: "",
+  headerBgColor: "#122232",
+  accentColor: "#07ABDE",
+  introText: "",
+  footerText: "Proposta gerada por Zenite · HTZ Agency",
+  ctaApproveText: "Aprovar Proposta",
+  ctaRejectText: "Recusar",
+  showServices: true,
+  showFinancialSummary: true,
+  showResponseButtons: true,
+  showMethodology: true,
+  heroTitle: "Proposta Comercial",
+  heroSubtitle: "",
+};
+
+export async function getProposalTemplate(): Promise<ProposalTemplateConfig | null> {
+  return apiFetch<ProposalTemplateConfig | null>("/proposal-template");
+}
+
+export async function saveProposalTemplate(config: ProposalTemplateConfig): Promise<ProposalTemplateConfig> {
+  return apiFetch<ProposalTemplateConfig>("/proposal-template", {
+    method: "PUT",
+    body: JSON.stringify(config),
+  });
+}
+
 // Dashboard
 export async function getDashboardStats(): Promise<DashboardStats> {
   return apiFetch<DashboardStats>("/dashboard/stats");

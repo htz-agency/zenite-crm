@@ -14,7 +14,7 @@ import {
   DotsThree,
   SelectionPlus,
   Sidebar as SidebarIcon,
-  CurrencyDollar,
+  Invoice,
   UsersThree,
   Megaphone,
   ArrowsClockwise,
@@ -189,7 +189,7 @@ interface ZeniteModule {
 }
 
 const zeniteModules: ZeniteModule[] = [
-  { id: "prc", name: "Price", abbr: "PRC", icon: CurrencyDollar, bg: "#DCF0FF", color: "#07ABDE", route: "/price" },
+  { id: "prc", name: "Price", abbr: "PRC", icon: Invoice, bg: "#DCF0FF", color: "#07ABDE", route: "/price" },
   { id: "crm", name: "CRM", abbr: "CRM", icon: UsersThree, bg: "#DCF0FF", color: "#0483AB", route: "/crm" },
   { id: "mkt", name: "Marketing", abbr: "MKT", icon: Megaphone, bg: "#FEEDCA", color: "#917822" },
   { id: "syc", name: "Sync", abbr: "SYC", icon: ArrowsClockwise, bg: "#D9F8EF", color: "#3CCEA7" },

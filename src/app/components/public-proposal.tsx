@@ -18,7 +18,12 @@ import {
   CalendarBlank,
 } from "@phosphor-icons/react";
 import { getPublicProposal, respondToProposal, dbToSelected, type DbProposal } from "./api";
-import { formatCurrency, services as allServicesCatalog, calculateServicePrice, groupLabels, type ServiceGroup } from "./pricing-data";
+import { formatCurrency, services as allServicesCatalog, calculateServicePrice, groupLabels, type ServiceGroup, adsComplexityLabels, allocationLabels } from "./pricing-data";
+
+import { getProposalTemplate, DEFAULT_TEMPLATE, type ProposalTemplateConfig } from "./api";
+import svgPaths360 from "../../imports/svg-1z8u746bdq";
+import svgPathsList1 from "../../imports/svg-27usn8kt6p";
+import svgPathsList2 from "../../imports/svg-4tydo46hes";
 
 const ff = { fontFeatureSettings: "'ss01', 'ss04', 'ss05', 'ss07'" };
 
@@ -56,13 +61,18 @@ export function PublicProposalContent({ token }: { token: string }) {
   const [error, setError] = useState("");
   const [responding, setResponding] = useState(false);
   const [responded, setResponded] = useState(false);
+  const [tpl, setTpl] = useState<ProposalTemplateConfig>({ ...DEFAULT_TEMPLATE });
 
   useEffect(() => {
     if (!token) return;
     (async () => {
       try {
-        const data = await getPublicProposal(token);
+        const [data, templateData] = await Promise.all([
+          getPublicProposal(token),
+          getProposalTemplate().catch(() => null),
+        ]);
         setProposal(data);
+        if (templateData) setTpl({ ...DEFAULT_TEMPLATE, ...templateData });
       } catch (err: any) {
         setError(err?.message || "Link inválido ou expirado.");
       } finally {
@@ -131,6 +141,9 @@ export function PublicProposalContent({ token }: { token: string }) {
         group: catalogSvc.group,
         complexity: dbSvc.complexity,
         recurrence: dbSvc.recurrence,
+        allocation: dbSvc.allocation,
+        isAds: catalogSvc.isAds,
+        includeImpl: dbSvc.include_impl,
       };
     }
     return {
@@ -141,6 +154,9 @@ export function PublicProposalContent({ token }: { token: string }) {
       group: "performance" as ServiceGroup,
       complexity: dbSvc.complexity,
       recurrence: dbSvc.recurrence,
+      allocation: dbSvc.allocation ?? "compartilhado",
+      isAds: false,
+      includeImpl: dbSvc.include_impl,
     };
   });
 
@@ -171,18 +187,22 @@ export function PublicProposalContent({ token }: { token: string }) {
   return (
     <div className="min-h-screen bg-[#f0f2f5]">
       {/* Header bar */}
-      <div className="bg-[#122232] px-6 py-4">
+      <div className="px-6 py-4" style={{ backgroundColor: tpl.headerBgColor }}>
         <div className="max-w-[860px] mx-auto flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="flex items-center justify-center size-[32px] rounded-[10px] bg-[#28415c]">
-              <svg width="18" height="18" viewBox="0 0 28 28" fill="none">
-                <path d="M4 8L14 4L24 8V20L14 24L4 20V8Z" stroke="#07ABDE" strokeWidth="2" strokeLinejoin="round" fill="none" />
-                <path d="M14 4V24" stroke="#07ABDE" strokeWidth="1.5" strokeLinecap="round" />
-                <path d="M4 8L14 14L24 8" stroke="#07ABDE" strokeWidth="1.5" strokeLinecap="round" />
-              </svg>
-            </div>
+            {tpl.logoUrl ? (
+              <img src={tpl.logoUrl} alt="Logo" className="h-[32px] w-auto object-contain" />
+            ) : (
+              <div className="flex items-center justify-center size-[32px] rounded-[10px]" style={{ backgroundColor: tpl.accentColor + "22" }}>
+                <svg width="18" height="18" viewBox="0 0 28 28" fill="none">
+                  <path d="M4 8L14 4L24 8V20L14 24L4 20V8Z" stroke={tpl.accentColor} strokeWidth="2" strokeLinejoin="round" fill="none" />
+                  <path d="M14 4V24" stroke={tpl.accentColor} strokeWidth="1.5" strokeLinecap="round" />
+                  <path d="M4 8L14 14L24 8" stroke={tpl.accentColor} strokeWidth="1.5" strokeLinecap="round" />
+                </svg>
+              </div>
+            )}
             <span className="text-[#C8CFDB]" style={{ fontSize: 13, fontWeight: 700, letterSpacing: 0.5, textTransform: "uppercase" as const, ...ff }}>
-              Zenite · HTZ Agency
+              {tpl.companyName}
             </span>
           </div>
           <span className="text-[#4E6987]" style={{ fontSize: 12, fontWeight: 500, ...ff }}>
@@ -201,12 +221,12 @@ export function PublicProposalContent({ token }: { token: string }) {
           <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-6">
             <div className="flex-1">
               <div className="flex items-center gap-3 mb-3">
-                <div className="flex items-center justify-center size-[40px] rounded-[12px] bg-[#DCF0FF] shrink-0">
-                  <FileText size={22} weight="duotone" className="text-[#0483AB]" />
+                <div className="flex items-center justify-center size-[40px] rounded-[12px] shrink-0" style={{ backgroundColor: tpl.accentColor + "20" }}>
+                  <FileText size={22} weight="duotone" style={{ color: tpl.accentColor }} />
                 </div>
                 <div>
                   <p className="text-[#98989d]" style={{ fontSize: 11, fontWeight: 700, letterSpacing: 0.5, textTransform: "uppercase" as const, ...ff }}>
-                    Proposta Comercial
+                    {tpl.heroTitle}
                   </p>
                   <p className="text-[#4E6987]" style={{ fontSize: 12, ...ff }}>
                     {proposal.id} · Criada em {formatDate(proposal.created_at)}
@@ -216,14 +236,18 @@ export function PublicProposalContent({ token }: { token: string }) {
               <h1 className="text-[#122232] mt-4" style={{ fontSize: 28, fontWeight: 700, letterSpacing: -0.8, lineHeight: 1.2, ...ff }}>
                 {proposal.client_name}
               </h1>
-              {proposal.notes && (
-                <p className="text-[#4E6987] mt-3" style={{ fontSize: 14, lineHeight: 1.6, ...ff }}>
-                  {proposal.notes}
-                </p>
+              {tpl.heroSubtitle && (
+                <p className="text-[#4E6987] mt-2" style={{ fontSize: 14, fontWeight: 500, lineHeight: 1.5, ...ff }}>{tpl.heroSubtitle}</p>
               )}
+              {tpl.introText ? (
+                <p className="text-[#4E6987] mt-3" style={{ fontSize: 14, lineHeight: 1.6, ...ff }}>{tpl.introText}</p>
+              ) : proposal.notes ? (
+                <p className="text-[#4E6987] mt-3" style={{ fontSize: 14, lineHeight: 1.6, ...ff }}>{proposal.notes}</p>
+              ) : null}
             </div>
 
             {/* Financial summary */}
+            {tpl.showFinancialSummary && (
             <div className="shrink-0 bg-[#f6f7f9] rounded-[16px] p-6 min-w-[240px]">
               <p className="text-[#98989d] mb-4" style={{ fontSize: 10, fontWeight: 700, letterSpacing: 0.5, textTransform: "uppercase" as const, ...ff }}>
                 Resumo Financeiro
@@ -231,7 +255,7 @@ export function PublicProposalContent({ token }: { token: string }) {
               <div className="flex flex-col gap-3">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
-                    <CurrencyDollar size={16} weight="duotone" className="text-[#0483AB]" />
+                    <CurrencyDollar size={16} weight="duotone" style={{ color: tpl.accentColor }} />
                     <span className="text-[#4E6987]" style={{ fontSize: 13, ...ff }}>Mensalidade</span>
                   </div>
                   <span className="text-[#122232]" style={{ fontSize: 14, fontWeight: 700, ...ff }}>
@@ -272,22 +296,24 @@ export function PublicProposalContent({ token }: { token: string }) {
                 <div className="h-[1px] bg-[#DDE3EC] my-1" />
                 <div className="flex items-center justify-between">
                   <span className="text-[#122232]" style={{ fontSize: 14, fontWeight: 700, ...ff }}>Total</span>
-                  <span className="text-[#0483AB]" style={{ fontSize: 20, fontWeight: 700, letterSpacing: -0.5, ...ff }}>
+                  <span style={{ fontSize: 20, fontWeight: 700, letterSpacing: -0.5, color: tpl.accentColor, ...ff }}>
                     {formatCurrency(proposal.grand_total)}
                   </span>
                 </div>
               </div>
             </div>
+            )}
           </div>
         </div>
 
         {/* Services */}
+        {tpl.showServices && (
         <div
           className="bg-white rounded-[20px] p-8 md:p-10 mb-6"
           style={{ boxShadow: "0 4px 24px rgba(18,34,50,0.06)" }}
         >
           <div className="flex items-center gap-3 mb-6">
-            <Package size={20} weight="duotone" className="text-[#0483AB]" />
+            <Package size={20} weight="duotone" style={{ color: tpl.accentColor }} />
             <h2 className="text-[#122232]" style={{ fontSize: 18, fontWeight: 700, letterSpacing: -0.5, ...ff }}>
               Serviços Incluídos
             </h2>
@@ -316,25 +342,38 @@ export function PublicProposalContent({ token }: { token: string }) {
                         <p className="text-[#122232] truncate" style={{ fontSize: 14, fontWeight: 600, ...ff }}>
                           {svc.name}
                         </p>
-                        <div className="flex items-center gap-2 mt-1">
+                        <div className="flex items-center gap-1.5 mt-1 flex-wrap">
                           <span className="text-[#98989d]" style={{ fontSize: 11, ...ff }}>
-                            {complexityLabels[svc.complexity] ?? svc.complexity}
+                            {svc.isAds
+                              ? (adsComplexityLabels[svc.complexity] ?? svc.complexity)
+                              : (complexityLabels[svc.complexity] ?? svc.complexity)}
                           </span>
                           <span className="text-[#C8CFDB]">·</span>
                           <span className="text-[#98989d]" style={{ fontSize: 11, ...ff }}>
                             {recurrenceLabels[svc.recurrence] ?? svc.recurrence}
                           </span>
-                          <span className="text-[#C8CFDB]">·</span>
-                          <span className="text-[#98989d]" style={{ fontSize: 11, ...ff }}>
-                            {svc.hours}h/mês
-                          </span>
+                          {svc.allocation && (
+                            <>
+                              <span className="text-[#C8CFDB]">·</span>
+                              <span className="text-[#98989d]" style={{ fontSize: 11, ...ff }}>
+                                {svc.allocation === "dedicado" ? "Ded." : "Comp."}
+                              </span>
+                            </>
+                          )}
                         </div>
                       </div>
                       <div className="flex flex-col items-end shrink-0">
-                        <span className="text-[#122232]" style={{ fontSize: 14, fontWeight: 700, ...ff }}>
-                          {formatCurrency(svc.monthly)}
-                        </span>
-                        <span className="text-[#98989d]" style={{ fontSize: 11, ...ff }}>/mês</span>
+                        <div className="flex items-baseline gap-0.5">
+                          <span className="text-[#122232]" style={{ fontSize: 14, fontWeight: 700, ...ff }}>
+                            {formatCurrency(svc.monthly)}
+                          </span>
+                          <span className="text-[#98989d]" style={{ fontSize: 11, ...ff }}>/mês</span>
+                        </div>
+                        {svc.impl > 0 && (
+                          <span className="text-[#98989d]" style={{ fontSize: 11, ...ff }}>
+                            + {formatCurrency(svc.impl)} impl.
+                          </span>
+                        )}
                       </div>
                     </div>
                   ))}
@@ -343,8 +382,135 @@ export function PublicProposalContent({ token }: { token: string }) {
             );
           })}
         </div>
+        )}
+
+        {/* Metodologia 360º — branding padrão, sempre visível */}
+        <div
+          className="bg-white rounded-[20px] p-8 md:p-10 mb-6"
+          style={{ boxShadow: "0 4px 24px rgba(18,34,50,0.06)" }}
+        >
+          <div className="flex flex-col md:flex-row gap-8">
+            {/* Left: branding */}
+            <div className="flex flex-col items-center text-center shrink-0 md:w-[180px]">
+              <div className="overflow-hidden size-[120px] mb-4">
+                <svg className="block size-full" fill="none" preserveAspectRatio="xMidYMid meet" viewBox="0 0 183.042 178.642">
+                  <path clipRule="evenodd" d={svgPaths360.p29d91900} fill="#8C8CD4" fillRule="evenodd" />
+                  <path clipRule="evenodd" d={svgPaths360.p737b5f0} fill="#07ABDE" fillRule="evenodd" />
+                  <path clipRule="evenodd" d={svgPaths360.p17aa0c40} fill="#3CCEA7" fillRule="evenodd" />
+                  <path clipRule="evenodd" d={svgPaths360.p20005730} fill="#EAC23D" fillRule="evenodd" />
+                  <path clipRule="evenodd" d={svgPaths360.p3dbbf580} fill="#FF8C76" fillRule="evenodd" />
+                </svg>
+              </div>
+              <h2 className="text-[#28415c]" style={{ fontSize: 32, fontWeight: 900, letterSpacing: -0.5, ...ff }}>
+                agencyOS
+              </h2>
+              <h3 className="text-[#4e6987]" style={{ fontSize: 20, fontWeight: 700, letterSpacing: -0.5, ...ff }}>
+                Metodologia 360º
+              </h3>
+              <p className="text-[#4e6987] mt-2" style={{ fontFamily: "'DM Serif Display', serif", fontStyle: "italic", fontSize: 15, lineHeight: 1.5 }}>
+                Transforme sua presença no mercado com uma abordagem estratégica completa.
+              </p>
+            </div>
+
+            {/* Right: pillars grid */}
+            <div className="flex-1 min-w-0 grid grid-cols-1 md:grid-cols-2 gap-4">
+              {/* Estratégia Competitiva */}
+              <div className="rounded-[16px] bg-[#dcf0ff] p-6">
+                <div className="flex items-center gap-3 mb-3">
+                  <div className="shrink-0 size-[28px]">
+                    <svg className="block size-full" fill="none" viewBox="0 0 32 32">
+                      <path d={svgPathsList1.pee08a80} fill="#0483AB" />
+                    </svg>
+                  </div>
+                  <h4 className="text-[#0483ab]" style={{ fontSize: 18, fontWeight: 700, letterSpacing: -0.5, ...ff }}>
+                    Estratégia Competitiva
+                  </h4>
+                </div>
+                <p className="text-[#001b26]" style={{ fontSize: 14, fontWeight: 500, lineHeight: 1.6, ...ff }}>
+                  Mapeamos o território antes de traçar o caminho. Definimos objetivos claros, analisamos o mercado em profundidade, segmentamos audiências com precisão e identificamos gaps competitivos que se transformam em oportunidades de crescimento.
+                </p>
+              </div>
+
+              {/* Propaganda & Mídia */}
+              <div className="rounded-[16px] bg-[#ffedeb] p-6">
+                <div className="flex items-center gap-3 mb-3">
+                  <div className="shrink-0 size-[28px]">
+                    <svg className="block size-full" fill="none" viewBox="0 0 32 32">
+                      <path d={svgPathsList2.pe840800} fill="#F56233" />
+                    </svg>
+                  </div>
+                  <h4 className="text-[#f56233]" style={{ fontSize: 18, fontWeight: 700, letterSpacing: -0.5, ...ff }}>
+                    Propaganda & Mídia
+                  </h4>
+                </div>
+                <p className="text-[#431100]" style={{ fontSize: 14, fontWeight: 500, lineHeight: 1.6, ...ff }}>
+                  Visibilidade estratégica é tudo. Posicionamos sua marca nos canais certos, no momento certo, com a mensagem certa. Cada campanha é desenhada para maximizar alcance, engajamento e ROI.
+                </p>
+              </div>
+
+              {/* Planejamento de Marketing */}
+              <div className="rounded-[16px] bg-[#d9f8ef] p-6">
+                <div className="flex items-center gap-3 mb-3">
+                  <div className="shrink-0 size-[28px]">
+                    <svg className="block size-full" fill="none" viewBox="0 0 32 32">
+                      <path d={svgPathsList1.p15d50400} fill="#20B48D" />
+                    </svg>
+                  </div>
+                  <h4 className="text-[#20b48d]" style={{ fontSize: 18, fontWeight: 700, letterSpacing: -0.5, ...ff }}>
+                    Planejamento de Marketing
+                  </h4>
+                </div>
+                <p className="text-[#02140e]" style={{ fontSize: 14, fontWeight: 500, lineHeight: 1.6, ...ff }}>
+                  Estratégia sem execução é apenas teoria. Desenvolvemos planos de ação baseados em dados, selecionamos os canais mais eficientes para seu público, construímos mensagens que convertem e criamos campanhas que geram impacto real.
+                </p>
+              </div>
+
+              {/* Análise & Otimização */}
+              <div className="rounded-[16px] bg-[#e8e8fd] p-6">
+                <div className="flex items-center gap-3 mb-3">
+                  <div className="shrink-0 size-[28px]">
+                    <svg className="block size-full" fill="none" viewBox="0 0 32 32">
+                      <path d={svgPathsList2.p3dddc7d0} fill="#6868B1" />
+                    </svg>
+                  </div>
+                  <h4 className="text-[#6868b1]" style={{ fontSize: 18, fontWeight: 700, letterSpacing: -0.5, ...ff }}>
+                    Análise & Otimização
+                  </h4>
+                </div>
+                <p className="text-[#14142c]" style={{ fontSize: 14, fontWeight: 500, lineHeight: 1.6, ...ff }}>
+                  Medimos tudo que importa. Através de análises aprofundadas e relatórios inteligentes, identificamos o que funciona, otimizamos o que pode melhorar e garantimos evolução constante. Seus investimentos em marketing se tornam cada vez mais eficientes.
+                </p>
+              </div>
+
+              {/* Design & Identidade */}
+              <div className="rounded-[16px] bg-[#feedca] p-6">
+                <div className="flex items-center gap-3 mb-3">
+                  <div className="shrink-0 size-[28px]">
+                    <svg className="block size-full" fill="none" viewBox="0 0 32 32">
+                      <path d={svgPathsList1.p350ae4e0} fill="#917822" />
+                    </svg>
+                  </div>
+                  <h4 className="text-[#917822]" style={{ fontSize: 18, fontWeight: 700, letterSpacing: -0.5, ...ff }}>
+                    Design & Identidade
+                  </h4>
+                </div>
+                <p className="text-[#1f1803]" style={{ fontSize: 14, fontWeight: 500, lineHeight: 1.6, ...ff }}>
+                  Sua marca merece se destacar. Criamos identidades visuais memoráveis, experiências digitais envolventes e materiais de comunicação que não apenas chamam atenção, mas eles constroem conexões emocionais duradouras com seu público-alvo.
+                </p>
+              </div>
+
+              {/* Closing statement */}
+              <div className="flex items-center p-4">
+                <p className="text-[#4e6987]" style={{ fontFamily: "'DM Serif Display', serif", fontStyle: "italic", fontSize: 15, lineHeight: 1.6 }}>
+                  A Metodologia 360º da HTZ é mais do que um framework, é um sistema integrado que conecta todos os pontos de contato entre sua marca e o mercado. Diferente de soluções fragmentadas, nossa abordagem garante coerência estratégica, execução impecável e resultados mensuráveis em cada etapa da jornada do seu cliente.
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
 
         {/* Response section */}
+        {tpl.showResponseButtons && (
         <div
           className="bg-white rounded-[20px] p-8 md:p-10"
           style={{ boxShadow: "0 4px 24px rgba(18,34,50,0.06)" }}
@@ -383,7 +549,7 @@ export function PublicProposalContent({ token }: { token: string }) {
                   style={{ fontSize: 14, fontWeight: 700, ...ff }}
                 >
                   <CheckCircle size={20} weight="bold" />
-                  Aprovar Proposta
+                  {tpl.ctaApproveText}
                 </button>
                 <button
                   onClick={() => handleRespond("recusada")}
@@ -392,19 +558,22 @@ export function PublicProposalContent({ token }: { token: string }) {
                   style={{ fontSize: 14, fontWeight: 700, ...ff }}
                 >
                   <XCircle size={20} weight="bold" />
-                  Recusar
+                  {tpl.ctaRejectText}
                 </button>
               </div>
             </>
           )}
         </div>
+        )}
 
         {/* Footer */}
+        {tpl.footerText && (
         <div className="text-center mt-8 mb-4">
           <p className="text-[#98989d]" style={{ fontSize: 11, fontWeight: 500, ...ff }}>
-            Proposta gerada por Zenite · HTZ Agency
+            {tpl.footerText}
           </p>
         </div>
+        )}
       </div>
     </div>
   );

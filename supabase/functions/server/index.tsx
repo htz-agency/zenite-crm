@@ -126,6 +126,44 @@ app.get(`${PREFIX}/proposals`, async (c) => {
   }
 });
 
+// Get proposals linked to a specific CRM entity (MUST be before :id route)
+// Query params: accountId, opportunityId, contactId (any combo)
+app.get(`${PREFIX}/proposals/by-crm`, async (c) => {
+  try {
+    const accountId = c.req.query("accountId");
+    const opportunityId = c.req.query("opportunityId");
+    const contactId = c.req.query("contactId");
+
+    if (!accountId && !opportunityId && !contactId) {
+      return c.json({ data: [] });
+    }
+
+    const db = supabase();
+    let query = db.from("price_proposals").select("*, price_proposal_services(*)");
+
+    // Build OR filter for any matching column
+    const orFilters: string[] = [];
+    if (accountId) orFilters.push(`account.eq.${accountId}`);
+    if (opportunityId) orFilters.push(`opportunity.eq.${opportunityId}`);
+    if (contactId) orFilters.push(`contact.eq.${contactId}`);
+
+    query = query.or(orFilters.join(","));
+    query = query.order("created_at", { ascending: false });
+
+    const { data, error } = await query;
+
+    if (error) {
+      console.log("Error fetching proposals by CRM entity:", error);
+      return c.json({ error: `Error: ${error.message}` }, 500);
+    }
+
+    return c.json({ data: data ?? [] });
+  } catch (err) {
+    console.log("Error fetching proposals by CRM entity:", err);
+    return c.json({ error: `Error: ${err}` }, 500);
+  }
+});
+
 // Get single proposal by ID
 app.get(`${PREFIX}/proposals/:id`, async (c) => {
   try {
@@ -467,6 +505,9 @@ app.post(`${PREFIX}/proposals/:id/duplicate`, async (c) => {
       total_impl: original.total_impl,
       total_hours: original.total_hours,
       grand_total: original.grand_total,
+      account: original.account || null,
+      contact: original.contact || null,
+      opportunity: original.opportunity || null,
     });
 
     if (insertError) {
@@ -518,15 +559,66 @@ app.post(`${PREFIX}/proposals/:id/duplicate`, async (c) => {
 });
 
 // ────────────────────────────────────
-//  PROPOSAL CRM LINKS (kv_store)
+//  PROPOSAL CRM LINKS (price_proposals columns: account, opportunity, contact)
 // ────────────────────────────────────
 
 // Get CRM links for a proposal
 app.get(`${PREFIX}/proposals/:id/crm-links`, async (c) => {
   try {
     const id = c.req.param("id");
-    const raw = await kv.get(`price_proposal_crm:${id}`);
-    return c.json({ data: raw ? JSON.parse(raw) : {} });
+    const db = supabase();
+
+    // Fetch the proposal's CRM columns
+    const { data: proposal, error } = await db
+      .from("price_proposals")
+      .select("account, opportunity, contact")
+      .eq("id", id)
+      .maybeSingle();
+
+    if (error) {
+      console.log("Error fetching proposal CRM links:", error);
+      return c.json({ error: `Error: ${error.message}` }, 500);
+    }
+    if (!proposal) {
+      return c.json({ data: {} });
+    }
+
+    const result: Record<string, any> = {};
+
+    // Resolve account name
+    if (proposal.account) {
+      result.accountId = proposal.account;
+      const { data: acc } = await db
+        .from("crm_accounts")
+        .select("name")
+        .eq("id", proposal.account)
+        .maybeSingle();
+      result.accountName = acc?.name ?? "";
+    }
+
+    // Resolve contact name
+    if (proposal.contact) {
+      result.contactId = proposal.contact;
+      const { data: ct } = await db
+        .from("crm_contacts")
+        .select("name, last_name")
+        .eq("id", proposal.contact)
+        .maybeSingle();
+      result.contactName = ct ? `${ct.name ?? ""} ${ct.last_name ?? ""}`.trim() : "";
+    }
+
+    // Resolve opportunity name
+    if (proposal.opportunity) {
+      result.opportunityId = proposal.opportunity;
+      const { data: op } = await db
+        .from("crm_opportunities")
+        .select("name")
+        .eq("id", proposal.opportunity)
+        .maybeSingle();
+      result.opportunityName = op?.name ?? "";
+    }
+
+    return c.json({ data: result });
   } catch (err) {
     console.log("Error fetching proposal CRM links:", err);
     return c.json({ error: `Error: ${err}` }, 500);
@@ -538,7 +630,25 @@ app.put(`${PREFIX}/proposals/:id/crm-links`, async (c) => {
   try {
     const id = c.req.param("id");
     const body = await c.req.json();
-    await kv.set(`price_proposal_crm:${id}`, JSON.stringify(body));
+    const db = supabase();
+
+    const updatePayload: Record<string, any> = {
+      account: body.accountId || null,
+      contact: body.contactId || null,
+      opportunity: body.opportunityId || null,
+      updated_at: new Date().toISOString(),
+    };
+
+    const { error } = await db
+      .from("price_proposals")
+      .update(updatePayload)
+      .eq("id", id);
+
+    if (error) {
+      console.log("Error saving proposal CRM links:", error);
+      return c.json({ error: `Error: ${error.message}` }, 500);
+    }
+
     return c.json({ data: body });
   } catch (err) {
     console.log("Error saving proposal CRM links:", err);
@@ -549,6 +659,33 @@ app.put(`${PREFIX}/proposals/:id/crm-links`, async (c) => {
 // ────────────────────────────────────
 //  DASHBOARD STATS
 // ────────────────────────────────────
+
+// ────────────────────────────────────
+//  PROPOSAL TEMPLATE CONFIG (kv_store)
+// ────────────────────────────────────
+
+const TEMPLATE_KV_KEY = "proposal_template_config";
+
+app.get(`${PREFIX}/proposal-template`, async (c) => {
+  try {
+    const raw = await kv.get(TEMPLATE_KV_KEY);
+    return c.json({ data: raw ? JSON.parse(raw) : null });
+  } catch (err) {
+    console.log("Error fetching proposal template config:", err);
+    return c.json({ error: `Error: ${err}` }, 500);
+  }
+});
+
+app.put(`${PREFIX}/proposal-template`, async (c) => {
+  try {
+    const body = await c.req.json();
+    await kv.set(TEMPLATE_KV_KEY, JSON.stringify(body));
+    return c.json({ data: body });
+  } catch (err) {
+    console.log("Error saving proposal template config:", err);
+    return c.json({ error: `Error: ${err}` }, 500);
+  }
+});
 
 // ────────────────────────────────────
 //  PUBLIC PROPOSAL SHARING (kv_store)

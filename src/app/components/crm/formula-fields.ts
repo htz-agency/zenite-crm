@@ -1,84 +1,60 @@
 /**
- * Zenite — Shared formula field data
- *
- * Single source of truth for the field list and demo context
- * used by FormulaBuilder across all pages (Campos Calculados,
- * Criar Campo Customizado, etc.).
+ * Formula Fields — Available fields & demo context for the Formula Builder.
  */
 
-import {
-  LEAD_FIELDS,
-  OPPORTUNITY_FIELDS,
-  CONTACT_FIELDS,
-  ACCOUNT_FIELDS,
-  type NativeField,
-} from "./crm-settings-native-fields";
 import type { FieldSchema, FormulaContext } from "./formula-engine";
 
 /* ================================================================== */
-/*  Helpers                                                            */
+/*  Available fields for the formula builder                           */
 /* ================================================================== */
 
-/** Map native CRM field types to the simplified FieldSchema types */
-function mapFieldType(ft: string): FieldSchema["type"] {
-  switch (ft) {
-    case "number":
-      return "number";
-    case "currency":
-      return "currency";
-    case "percentage":
-      return "percentage";
-    case "date":
-    case "time":
-    case "datetime":
-    case "duration":
-      return "date";
-    case "boolean":
-      return "boolean";
-    default:
-      return "text";
-  }
-}
-
-/** Convert NativeField[] to FieldSchema[] with object group */
-function nativeToSchema(
-  fields: NativeField[],
-  objectGroup: FieldSchema["objectGroup"],
-): FieldSchema[] {
-  return fields
-    .filter((f) => f.fieldType !== "id")
-    .map((f) => ({
-      key: f.key,
-      label: f.label,
-      type: mapFieldType(f.fieldType),
-      objectGroup,
-    }));
-}
-
-/* ================================================================== */
-/*  Exports                                                            */
-/* ================================================================== */
-
-/** All native CRM fields from the 4 objects, ready for FormulaBuilder */
 export const FORMULA_AVAILABLE_FIELDS: FieldSchema[] = [
-  ...nativeToSchema(LEAD_FIELDS, "lead"),
-  ...nativeToSchema(OPPORTUNITY_FIELDS, "oportunidade"),
-  ...nativeToSchema(CONTACT_FIELDS, "contato"),
-  ...nativeToSchema(ACCOUNT_FIELDS, "conta"),
+  // Lead fields
+  { key: "valor_estimado", label: "Valor Estimado", type: "currency", objectGroup: "lead" },
+  { key: "probabilidade", label: "Probabilidade (%)", type: "percentage", objectGroup: "lead" },
+  { key: "desconto", label: "Desconto (%)", type: "percentage", objectGroup: "lead" },
+  { key: "quantidade", label: "Quantidade", type: "number", objectGroup: "lead" },
+  { key: "preco_unitario", label: "Preco Unitario", type: "currency", objectGroup: "lead" },
+  { key: "nome", label: "Nome", type: "text", objectGroup: "lead" },
+  { key: "email", label: "Email", type: "text", objectGroup: "lead" },
+  { key: "empresa", label: "Empresa", type: "text", objectGroup: "lead" },
+  { key: "created_at", label: "Data Criacao", type: "date", objectGroup: "lead" },
+
+  // Oportunidade fields
+  { key: "valor_proposta", label: "Valor da Proposta", type: "currency", objectGroup: "oportunidade" },
+  { key: "mrr", label: "MRR", type: "currency", objectGroup: "oportunidade" },
+  { key: "meses_contrato", label: "Meses de Contrato", type: "number", objectGroup: "oportunidade" },
+  { key: "comissao_pct", label: "Comissao (%)", type: "percentage", objectGroup: "oportunidade" },
+
+  // Contato fields
+  { key: "telefone", label: "Telefone", type: "text", objectGroup: "contato" },
+  { key: "cargo", label: "Cargo", type: "text", objectGroup: "contato" },
+
+  // Conta fields
+  { key: "receita_anual", label: "Receita Anual", type: "currency", objectGroup: "conta" },
+  { key: "num_funcionarios", label: "Num. Funcionarios", type: "number", objectGroup: "conta" },
 ];
 
-/** Demo context with sample values for live formula preview */
+/* ================================================================== */
+/*  Demo context for live formula preview                              */
+/* ================================================================== */
+
 export const FORMULA_DEMO_CONTEXT: FormulaContext = {
-  lead_annual_revenue: 1500000,
-  lead_employee_count: 85,
-  lead_qual_progress: 25,
-  lead_is_active: true,
-  lead_name: "Joao Silva",
-  lead_company: "XPTO Company",
-  lead_mkt_conversao: "2023-07-04T09:56:00Z",
-  op_needs_budget: "50000",
-  op_amount: 120000,
-  ac_annual_revenue: 3200000,
-  ac_employees: 120,
-  ct_name: "Maria",
+  valor_estimado: 25000,
+  probabilidade: 75,
+  desconto: 10,
+  quantidade: 3,
+  preco_unitario: 8500,
+  nome: "Joao Silva",
+  email: "joao@empresa.com",
+  empresa: "Acme Corp",
+  created_at: "2025-06-15",
+  valor_proposta: 42000,
+  mrr: 3500,
+  meses_contrato: 12,
+  comissao_pct: 8,
+  telefone: "(11) 99999-0000",
+  cargo: "Diretor de Marketing",
+  receita_anual: 5000000,
+  num_funcionarios: 120,
 };
