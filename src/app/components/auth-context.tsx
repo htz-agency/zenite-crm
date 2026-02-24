@@ -117,6 +117,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [validateAndSetSession]);
 
   const signInWithGoogle = useCallback(async () => {
+    // In production (not iframe), use direct redirect for reliable OAuth
+    if (!IS_PREVIEW) {
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: "google",
+        options: {
+          redirectTo: window.location.origin,
+        },
+      });
+      if (error) {
+        console.log("Error signing in with Google:", error.message);
+      }
+      return;
+    }
+
+    // In iframe/preview mode, use popup approach
     const { data, error } = await supabase.auth.signInWithOAuth({
       provider: "google",
       options: {
