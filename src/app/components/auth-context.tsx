@@ -244,20 +244,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 export function useAuth() {
   const ctx = useContext(AuthContext);
   if (!ctx) {
-    // In preview/HMR scenarios the provider may not be mounted yet.
-    // Return a safe fallback instead of crashing.
-    if (IS_PREVIEW) {
-      return {
-        session: null,
-        user: null,
-        loading: false,
-        signInWithGoogle: async () => {},
-        signOut: async () => {},
-        accessToken: null,
-        authError: null,
-      } as AuthContextValue;
-    }
-    throw new Error("useAuth must be used within an AuthProvider");
+    // Return safe fallback instead of throwing.
+    // This happens in:
+    //   - Figma Make preview (components rendered in isolation)
+    //   - HMR / React Refresh (provider not yet mounted)
+    //   - Catch-all routes outside RootLayout
+    console.warn("[Zenite Auth] useAuth called outside AuthProvider — returning fallback");
+    return {
+      session: null,
+      user: null,
+      loading: false,
+      signInWithGoogle: async () => {},
+      signOut: async () => {},
+      accessToken: null,
+      authError: null,
+    } as AuthContextValue;
   }
   return ctx;
 }
