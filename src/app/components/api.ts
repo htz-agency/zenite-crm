@@ -54,20 +54,49 @@ export interface DashboardStats {
 // ─── API functions ───
 
 async function apiFetch<T>(path: string, options?: RequestInit): Promise<T> {
-  const res = await fetch(`${BASE}${path}`, {
-    ...options,
-    headers: { ...headers(), ...options?.headers },
-  });
+  const MAX_RETRIES = 3;
+  let lastError: Error | null = null;
 
-  const json = await res.json();
+  for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
+    try {
+      const res = await fetch(`${BASE}${path}`, {
+        ...options,
+        headers: { ...headers(), ...options?.headers },
+      });
 
-  if (!res.ok) {
-    const errMsg = json?.error || `HTTP ${res.status}`;
-    console.error(`API error [${path}]:`, errMsg);
-    throw new Error(errMsg);
+      // Retry on server errors (5xx) which may be cold-start / transient
+      if (res.status >= 500 && attempt < MAX_RETRIES - 1) {
+        const delay = 1000 * (attempt + 1);
+        console.warn(`Price API retry ${attempt + 1}/${MAX_RETRIES} for [${path}] (HTTP ${res.status}) in ${delay}ms`);
+        await new Promise((r) => setTimeout(r, delay));
+        continue;
+      }
+
+      const json = await res.json();
+
+      if (!res.ok) {
+        const errMsg = json?.error || `HTTP ${res.status}`;
+        console.error(`API error [${path}]:`, errMsg);
+        throw new Error(errMsg);
+      }
+
+      return json.data;
+    } catch (err: any) {
+      lastError = err instanceof Error ? err : new Error(String(err));
+      const isNetworkError =
+        err instanceof TypeError ||
+        err?.name === "AbortError" ||
+        (err?.message && /failed to fetch|network|aborted|timeout|load failed/i.test(err.message));
+      if (isNetworkError && attempt < MAX_RETRIES - 1) {
+        const delay = 1000 * (attempt + 1);
+        console.warn(`Price API retry ${attempt + 1}/${MAX_RETRIES} for [${path}] in ${delay}ms`);
+        await new Promise((r) => setTimeout(r, delay));
+        continue;
+      }
+      throw lastError;
+    }
   }
-
-  return json.data;
+  throw lastError!;
 }
 
 // Proposals
@@ -152,6 +181,27 @@ export async function duplicateProposalApi(
 ): Promise<DbProposal> {
   return apiFetch<DbProposal>(`/proposals/${id}/duplicate`, {
     method: "POST",
+  });
+}
+
+// Proposal CRM Links
+export interface ProposalCrmLinks {
+  accountId?: string | null;
+  accountName?: string;
+  contactId?: string | null;
+  contactName?: string;
+  opportunityId?: string | null;
+  opportunityName?: string;
+}
+
+export async function getProposalCrmLinks(proposalId: string): Promise<ProposalCrmLinks> {
+  return apiFetch<ProposalCrmLinks>(`/proposals/${proposalId}/crm-links`);
+}
+
+export async function saveProposalCrmLinks(proposalId: string, links: ProposalCrmLinks): Promise<ProposalCrmLinks> {
+  return apiFetch<ProposalCrmLinks>(`/proposals/${proposalId}/crm-links`, {
+    method: "PUT",
+    body: JSON.stringify(links),
   });
 }
 
@@ -244,4 +294,52 @@ export function generateProposalId(): string {
     result += chars.charAt(Math.floor(Math.random() * chars.length));
   }
   return result;
+}
+
+// ─── Public Proposal Sharing ───
+
+/** Base URL for public-facing links — uses current domain automatically */
+function getBaseUrl(): string {
+  if (typeof window !== "undefined") return window.location.origin;
+  return "https://zenite.htz.agency"; // fallback for SSR/tests
+}
+
+/**
+ * Build the public proposal URL.
+ * Uses the current domain so links work on any environment:
+ *   - Figma Make preview → preview domain
+ *   - Production Vercel  → zenite.htz.agency
+ */
+export function buildPublicUrl(token: string): string {
+  return `${getBaseUrl()}/p/${token}`;
+}
+
+export interface ShareInfo {
+  token: string;
+  proposalId: string;
+}
+
+export async function createShareLink(proposalId: string): Promise<ShareInfo> {
+  return apiFetch<ShareInfo>(`/proposals/${proposalId}/share`, {
+    method: "POST",
+  });
+}
+
+export async function getShareLink(proposalId: string): Promise<ShareInfo | null> {
+  return apiFetch<ShareInfo | null>(`/proposals/${proposalId}/share`);
+}
+
+export async function revokeShareLink(proposalId: string): Promise<void> {
+  await apiFetch(`/proposals/${proposalId}/share`, { method: "DELETE" });
+}
+
+export async function getPublicProposal(token: string): Promise<DbProposal> {
+  return apiFetch<DbProposal>(`/public/proposal/${token}`);
+}
+
+export async function respondToProposal(token: string, response: "aprovada" | "recusada"): Promise<void> {
+  await apiFetch(`/public/proposal/${token}/respond`, {
+    method: "PATCH",
+    body: JSON.stringify({ response }),
+  });
 }
