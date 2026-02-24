@@ -298,20 +298,16 @@ export function generateProposalId(): string {
 
 // ─── Public Proposal Sharing ───
 
-/** Base URL for public-facing links — uses current domain automatically */
-function getBaseUrl(): string {
-  if (typeof window !== "undefined") return window.location.origin;
-  return "https://zenite.htz.agency"; // fallback for SSR/tests
-}
+/** Always use the production domain for public share links */
+const PUBLIC_DOMAIN = "https://zenite.htz.agency";
 
 /**
  * Build the public proposal URL.
- * Uses the current domain so links work on any environment:
- *   - Figma Make preview → preview domain
- *   - Production Vercel  → zenite.htz.agency
+ * Always points to the production Vercel deploy,
+ * even when generated from the Figma Make preview.
  */
 export function buildPublicUrl(token: string): string {
-  return `${getBaseUrl()}/p/${token}`;
+  return `${PUBLIC_DOMAIN}/p/${token}`;
 }
 
 export interface ShareInfo {

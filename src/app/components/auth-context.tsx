@@ -3,6 +3,10 @@
  *
  * Provides session state, user info, login (Google) and logout
  * across the entire Zenite app. Uses a singleton Supabase client.
+ *
+ * KEY FIX: We explicitly call `exchangeCodeForSession()` when ?code=
+ * is detected in the URL, instead of relying on the Supabase client's
+ * auto-detection (which can silently fail in some environments).
  */
 
 import {
@@ -22,21 +26,23 @@ import { projectId, publicAnonKey } from "/utils/supabase/info";
 
 const supabaseUrl = `https://${projectId}.supabase.co`;
 
-export const supabase = createClient(supabaseUrl, publicAnonKey);
+export const supabase = createClient(supabaseUrl, publicAnonKey, {
+  auth: {
+    flowType: "pkce",
+    // We handle the code exchange ourselves — disable auto-detection
+    // to avoid race conditions with our explicit exchange.
+    detectSessionInUrl: false,
+  },
+});
 
 /* ================================================================== */
 /*  Preview / iframe detection                                         */
 /* ================================================================== */
 
-/**
- * Returns true when the app is running inside an iframe (Figma Make preview).
- * In that scenario Google OAuth popups can't complete, so we skip auth.
- */
 function isPreviewEnvironment(): boolean {
   try {
     return window.self !== window.top;
   } catch {
-    // cross-origin iframe → definitely a preview
     return true;
   }
 }
@@ -48,27 +54,18 @@ export const IS_PREVIEW = isPreviewEnvironment();
 /* ================================================================== */
 
 interface AuthContextValue {
-  /** Current session (null if not authenticated) */
   session: Session | null;
-  /** Current user (null if not authenticated) */
   user: User | null;
-  /** Whether the initial session check is still loading */
   loading: boolean;
-  /** Sign in with Google OAuth */
   signInWithGoogle: () => Promise<void>;
-  /** Sign out */
   signOut: () => Promise<void>;
-  /** Access token for Authorization header */
   accessToken: string | null;
-  /** Error message when domain is not allowed */
   authError: string | null;
-  /** OAuth URL for manual fallback link (when auto-redirect fails) */
   oauthUrl: string | null;
 }
 
 const ALLOWED_DOMAIN = "htz.agency";
 
-/** Check if email belongs to the allowed domain */
 function isAllowedEmail(email: string | undefined): boolean {
   if (!email) return false;
   return email.toLowerCase().endsWith(`@${ALLOWED_DOMAIN}`);
@@ -86,11 +83,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [authError, setAuthError] = useState<string | null>(null);
   const [oauthUrl, setOauthUrl] = useState<string | null>(null);
 
-  /** Validate session domain — sign out if not allowed */
   const validateAndSetSession = useCallback(async (s: Session | null) => {
     if (s && !isAllowedEmail(s.user?.email)) {
       console.log(
-        `Domain not allowed: ${s.user?.email}. Only @${ALLOWED_DOMAIN} accounts can access Zenite.`
+        `[Zenite Auth] Domain not allowed: ${s.user?.email}. Only @${ALLOWED_DOMAIN}.`
       );
       setAuthError(
         `Apenas contas @${ALLOWED_DOMAIN} podem acessar o Zenite. O email ${s.user?.email} não é autorizado.`
@@ -104,63 +100,94 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   useEffect(() => {
-    /**
-     * Detect OAuth callback params in the URL.
-     * Supabase PKCE flow returns ?code=..., implicit flow returns #access_token=...
-     * We must wait for the client to exchange these before setting loading=false,
-     * otherwise RequireAuth will redirect to /login and strip the params.
-     */
+    // ── 1. Check for OAuth callback code in URL ──────────────────────
     const url = new URL(window.location.href);
-    const hasOAuthCallback =
-      url.searchParams.has("code") ||
-      url.hash.includes("access_token");
+    const code = url.searchParams.get("code");
+    const hashToken = url.hash.includes("access_token");
 
-    if (hasOAuthCallback) {
-      console.log("[Zenite Auth] OAuth callback detected, waiting for session exchange...");
+    const hasCallback = !!code || hashToken;
+
+    if (hasCallback) {
+      console.log("[Zenite Auth] OAuth callback detected:", {
+        hasCode: !!code,
+        hasHashToken: hashToken,
+        url: window.location.href,
+      });
     }
 
-    // Listen for auth state changes FIRST (to catch the exchange result)
+    // ── 2. Listen for auth state changes ─────────────────────────────
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((event, s) => {
-      console.log("[Zenite Auth] onAuthStateChange:", event, s ? "has session" : "no session");
+      console.log(
+        "[Zenite Auth] onAuthStateChange:",
+        event,
+        s ? `session for ${s.user?.email}` : "no session"
+      );
 
-      // BUG FIX: During an OAuth callback, INITIAL_SESSION fires with null
-      // session BEFORE the code exchange completes. If we set loading=false
-      // here, RequireAuth redirects to /login which overwrites the PKCE
-      // code_verifier. So we skip this event when we know the exchange is
-      // still in progress.
-      if (event === "INITIAL_SESSION" && !s && hasOAuthCallback) {
-        console.log("[Zenite Auth] Skipping INITIAL_SESSION — waiting for code exchange...");
+      // During OAuth callback, skip INITIAL_SESSION with no session —
+      // we'll get the session from our explicit code exchange below.
+      if (event === "INITIAL_SESSION" && !s && hasCallback) {
+        console.log("[Zenite Auth] Skipping INITIAL_SESSION during callback");
         return;
       }
 
-      // Clean up OAuth params from URL after successful exchange
-      if (s && hasOAuthCallback) {
-        console.log("[Zenite Auth] Session established after OAuth callback — cleaning URL");
+      // Clean up URL after successful session from callback
+      if (s && hasCallback) {
+        console.log("[Zenite Auth] Session established — cleaning URL");
         window.history.replaceState({}, "", window.location.pathname);
       }
 
       validateAndSetSession(s).then(() => setLoading(false));
     });
 
-    // Then check for existing session
-    supabase.auth.getSession().then(({ data: { session: s } }) => {
-      console.log("[Zenite Auth] getSession result:", s ? "session found" : "no session");
-      // If we have an OAuth callback but no session yet, DON'T set loading=false.
-      // Wait for onAuthStateChange to fire after the code exchange.
-      if (!s && hasOAuthCallback) {
-        console.log("[Zenite Auth] Waiting for code exchange to complete...");
-        // Safety timeout — if exchange takes too long, stop loading
-        const timeout = setTimeout(() => {
-          console.warn("[Zenite Auth] Code exchange timeout, setting loading=false");
+    // ── 3. Handle OAuth code exchange explicitly ─────────────────────
+    if (code) {
+      console.log("[Zenite Auth] Exchanging code for session...");
+
+      supabase.auth
+        .exchangeCodeForSession(code)
+        .then(({ data, error }) => {
+          if (error) {
+            console.error(
+              "[Zenite Auth] Code exchange FAILED:",
+              error.message,
+              error
+            );
+            setAuthError(`Erro na troca do código OAuth: ${error.message}`);
+            // Clean up the ?code= from URL so user can retry
+            window.history.replaceState({}, "", window.location.pathname);
+            setLoading(false);
+            return;
+          }
+
+          console.log(
+            "[Zenite Auth] Code exchange SUCCESS:",
+            data.session?.user?.email
+          );
+          // onAuthStateChange should fire with SIGNED_IN,
+          // but set session here too for safety
+          if (data.session) {
+            window.history.replaceState({}, "", window.location.pathname);
+            validateAndSetSession(data.session).then(() => setLoading(false));
+          }
+        })
+        .catch((err) => {
+          console.error("[Zenite Auth] Code exchange EXCEPTION:", err);
+          setAuthError(`Erro inesperado na autenticação: ${String(err)}`);
+          window.history.replaceState({}, "", window.location.pathname);
           setLoading(false);
-        }, 10_000);
-        // Clean up on unmount
-        return () => clearTimeout(timeout);
-      }
-      validateAndSetSession(s).then(() => setLoading(false));
-    });
+        });
+    } else {
+      // ── 4. No callback — check for existing session ────────────────
+      supabase.auth.getSession().then(({ data: { session: s } }) => {
+        console.log(
+          "[Zenite Auth] getSession:",
+          s ? `session for ${s.user?.email}` : "no session"
+        );
+        validateAndSetSession(s).then(() => setLoading(false));
+      });
+    }
 
     return () => subscription.unsubscribe();
   }, [validateAndSetSession]);
@@ -172,34 +199,31 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     console.log("[Zenite Auth] Starting Google OAuth...");
 
     try {
+      const { data, error } = await supabase.auth.signInWithOAuth({
+        provider: "google",
+        options: {
+          redirectTo: window.location.origin,
+          skipBrowserRedirect: true,
+        },
+      });
+
+      if (error) {
+        console.error("[Zenite Auth] OAuth error:", error.message, error);
+        setAuthError(`Erro no login Google: ${error.message}`);
+        return;
+      }
+
+      if (!data?.url) {
+        console.error("[Zenite Auth] No OAuth URL returned!", data);
+        setAuthError("Erro: nenhuma URL de autenticação retornada.");
+        return;
+      }
+
+      console.log("[Zenite Auth] Got OAuth URL:", data.url);
+      setOauthUrl(data.url);
+
       if (!IS_PREVIEW) {
-        // Production: let Supabase SDK handle the redirect natively.
-        // We also get the URL for a manual fallback link.
-        const { data, error } = await supabase.auth.signInWithOAuth({
-          provider: "google",
-          options: {
-            redirectTo: window.location.origin,
-            skipBrowserRedirect: true,
-          },
-        });
-
-        if (error) {
-          console.error("[Zenite Auth] OAuth error:", error.message, error);
-          setAuthError(`Erro no login Google: ${error.message}`);
-          return;
-        }
-
-        if (!data?.url) {
-          console.error("[Zenite Auth] No OAuth URL returned!", data);
-          setAuthError("Erro: nenhuma URL de autenticação retornada.");
-          return;
-        }
-
-        console.log("[Zenite Auth] Got OAuth URL:", data.url);
-        // Save URL for manual fallback
-        setOauthUrl(data.url);
-
-        // Navigate using an anchor click (most reliable across browsers)
+        // Navigate using anchor click
         const a = document.createElement("a");
         a.href = data.url;
         a.rel = "noopener";
@@ -207,38 +231,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         a.click();
         document.body.removeChild(a);
       } else {
-        // Iframe/preview: popup approach
-        const { data, error } = await supabase.auth.signInWithOAuth({
-          provider: "google",
-          options: {
-            redirectTo: window.location.origin,
-            skipBrowserRedirect: true,
-          },
-        });
-        if (error) {
-          console.error("[Zenite Auth] OAuth error:", error.message);
-          return;
-        }
-        if (data?.url) {
-          const popup = window.open(
-            data.url,
-            "google-oauth",
-            "width=500,height=650,popup=yes,left=200,top=100"
-          );
-          const pollInterval = setInterval(async () => {
-            try {
-              const { data: sessionData } = await supabase.auth.getSession();
-              if (sessionData?.session) {
-                clearInterval(pollInterval);
-                await validateAndSetSession(sessionData.session);
-                if (popup && !popup.closed) popup.close();
-              }
-            } catch {
-              // ignore
+        // Iframe: popup
+        const popup = window.open(
+          data.url,
+          "google-oauth",
+          "width=500,height=650,popup=yes,left=200,top=100"
+        );
+        const pollInterval = setInterval(async () => {
+          try {
+            const { data: sd } = await supabase.auth.getSession();
+            if (sd?.session) {
+              clearInterval(pollInterval);
+              await validateAndSetSession(sd.session);
+              if (popup && !popup.closed) popup.close();
             }
-          }, 1000);
-          setTimeout(() => clearInterval(pollInterval), 120_000);
-        }
+          } catch {
+            /* ignore */
+          }
+        }, 1000);
+        setTimeout(() => clearInterval(pollInterval), 120_000);
       }
     } catch (err) {
       console.error("[Zenite Auth] Unexpected error:", err);
@@ -249,7 +260,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const signOut = useCallback(async () => {
     const { error } = await supabase.auth.signOut();
     if (error) {
-      console.log("Error signing out:", error.message);
+      console.log("[Zenite Auth] Error signing out:", error.message);
     }
   }, []);
 
@@ -274,10 +285,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 export function useAuth() {
   const ctx = useContext(AuthContext);
   if (!ctx) {
-    // In preview/iframe (Figma Make), components often render outside the
-    // provider tree — this is expected behaviour, not an error.
     if (!IS_PREVIEW) {
-      console.warn("[Zenite Auth] useAuth called outside AuthProvider — returning fallback");
+      console.warn(
+        "[Zenite Auth] useAuth called outside AuthProvider — returning fallback"
+      );
     }
     return {
       session: null,
