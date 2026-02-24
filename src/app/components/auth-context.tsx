@@ -101,15 +101,44 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   useEffect(() => {
-    // Check for existing session on mount
-    supabase.auth.getSession().then(({ data: { session: s } }) => {
+    /**
+     * Detect OAuth callback params in the URL.
+     * Supabase PKCE flow returns ?code=..., implicit flow returns #access_token=...
+     * We must wait for the client to exchange these before setting loading=false,
+     * otherwise RequireAuth will redirect to /login and strip the params.
+     */
+    const url = new URL(window.location.href);
+    const hasOAuthCallback =
+      url.searchParams.has("code") ||
+      url.hash.includes("access_token");
+
+    if (hasOAuthCallback) {
+      console.log("[Zenite Auth] OAuth callback detected, waiting for session exchange...");
+    }
+
+    // Listen for auth state changes FIRST (to catch the exchange result)
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((event, s) => {
+      console.log("[Zenite Auth] onAuthStateChange:", event);
       validateAndSetSession(s).then(() => setLoading(false));
     });
 
-    // Listen for auth state changes (login, logout, token refresh)
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, s) => {
+    // Then check for existing session
+    supabase.auth.getSession().then(({ data: { session: s } }) => {
+      console.log("[Zenite Auth] getSession result:", s ? "session found" : "no session");
+      // If we have an OAuth callback but no session yet, DON'T set loading=false.
+      // Wait for onAuthStateChange to fire after the code exchange.
+      if (!s && hasOAuthCallback) {
+        console.log("[Zenite Auth] Waiting for code exchange to complete...");
+        // Safety timeout — if exchange takes too long, stop loading
+        const timeout = setTimeout(() => {
+          console.warn("[Zenite Auth] Code exchange timeout, setting loading=false");
+          setLoading(false);
+        }, 10_000);
+        // Clean up on unmount
+        return () => clearTimeout(timeout);
+      }
       validateAndSetSession(s).then(() => setLoading(false));
     });
 
@@ -119,14 +148,30 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const signInWithGoogle = useCallback(async () => {
     // In production (not iframe), use direct redirect for reliable OAuth
     if (!IS_PREVIEW) {
-      const { error } = await supabase.auth.signInWithOAuth({
-        provider: "google",
-        options: {
-          redirectTo: window.location.origin,
-        },
-      });
-      if (error) {
-        console.log("Error signing in with Google:", error.message);
+      console.log("[Zenite Auth] Starting Google OAuth redirect flow...");
+      console.log("[Zenite Auth] IS_PREVIEW:", IS_PREVIEW);
+      console.log("[Zenite Auth] redirectTo:", window.location.origin);
+      try {
+        const { data, error } = await supabase.auth.signInWithOAuth({
+          provider: "google",
+          options: {
+            redirectTo: window.location.origin,
+          },
+        });
+        if (error) {
+          console.error("[Zenite Auth] OAuth error:", error.message, error);
+          setAuthError(`Erro no login Google: ${error.message}`);
+          return;
+        }
+        console.log("[Zenite Auth] OAuth response data:", data);
+        // signInWithOAuth should auto-redirect; if it didn't, something is wrong
+        if (data?.url) {
+          console.log("[Zenite Auth] Redirecting to:", data.url);
+          window.location.href = data.url;
+        }
+      } catch (err) {
+        console.error("[Zenite Auth] Unexpected error:", err);
+        setAuthError(`Erro inesperado no login: ${String(err)}`);
       }
       return;
     }
@@ -199,6 +244,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 export function useAuth() {
   const ctx = useContext(AuthContext);
   if (!ctx) {
+    // In preview/HMR scenarios the provider may not be mounted yet.
+    // Return a safe fallback instead of crashing.
+    if (IS_PREVIEW) {
+      return {
+        session: null,
+        user: null,
+        loading: false,
+        signInWithGoogle: async () => {},
+        signOut: async () => {},
+        accessToken: null,
+        authError: null,
+      } as AuthContextValue;
+    }
     throw new Error("useAuth must be used within an AuthProvider");
   }
   return ctx;

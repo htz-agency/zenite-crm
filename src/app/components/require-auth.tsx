@@ -71,6 +71,18 @@ export function RequireAuth() {
   useEffect(() => {
     // Skip auth check in preview/iframe environments (Figma Make)
     if (IS_PREVIEW) return;
+
+    // Don't redirect to /login if we're processing an OAuth callback
+    // (the URL has ?code= or #access_token= from Supabase redirect)
+    const url = new URL(window.location.href);
+    const isOAuthCallback =
+      url.searchParams.has("code") ||
+      url.hash.includes("access_token");
+    if (isOAuthCallback) {
+      console.log("[Zenite RequireAuth] OAuth callback in progress, waiting...");
+      return;
+    }
+
     if (!loading && !session) {
       navigate("/login", { replace: true });
     }

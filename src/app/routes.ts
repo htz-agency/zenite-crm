@@ -139,10 +139,10 @@ export const router = createBrowserRouter([
           },
         ],
       },
+      {
+        path: "*",
+        Component: RedirectToPrice,
+      },
     ],
-  },
-  {
-    path: "*",
-    Component: RedirectToPrice,
   },
 ]);

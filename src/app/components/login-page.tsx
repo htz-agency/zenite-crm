@@ -115,9 +115,14 @@ export function LoginPage() {
 
           {/* Google Sign-in button */}
           <button
-            onClick={() => {
+            onClick={async () => {
               setLocalError(null);
-              signInWithGoogle();
+              try {
+                await signInWithGoogle();
+              } catch (err) {
+                console.error("[Zenite Login] Button click error:", err);
+                setLocalError(`Erro ao iniciar login: ${String(err)}`);
+              }
             }}
             disabled={loading}
             className="w-full flex items-center justify-center gap-[10px] h-[48px] rounded-[500px] bg-[#28415c] text-white hover:bg-[#1a2d40] active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer transition-all"
