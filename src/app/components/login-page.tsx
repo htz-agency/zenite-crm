@@ -15,10 +15,11 @@ import ZeniteLogo from "../../imports/Camada1";
 const ff = { fontFeatureSettings: "'ss01', 'ss04', 'ss05', 'ss07'" };
 
 export function LoginPage() {
-  const { signInWithGoogle, loading, session, authError } = useAuth();
+  const { signInWithGoogle, loading, session, authError, oauthUrl } = useAuth();
   const navigate = useNavigate();
   const [localError, setLocalError] = useState<string | null>(null);
   const [redirecting, setRedirecting] = useState(false);
+  const [showFallback, setShowFallback] = useState(false);
 
   // In preview (iframe) mode, skip login entirely — RequireAuth already bypasses
   // Also redirect if already authenticated
@@ -28,15 +29,13 @@ export function LoginPage() {
     }
   }, [loading, session, navigate]);
 
-  // Safety: if redirecting takes too long (>8s), something went wrong
+  // After 4s of redirecting, show fallback link
   useEffect(() => {
-    if (!redirecting) return;
-    const t = setTimeout(() => {
-      setRedirecting(false);
-      setLocalError(
-        "O redirecionamento para o Google não completou. Verifique se popups/redirects não estão bloqueados pelo navegador."
-      );
-    }, 8000);
+    if (!redirecting) {
+      setShowFallback(false);
+      return;
+    }
+    const t = setTimeout(() => setShowFallback(true), 4000);
     return () => clearTimeout(t);
   }, [redirecting]);
 
@@ -131,6 +130,7 @@ export function LoginPage() {
             onClick={async () => {
               setLocalError(null);
               setRedirecting(true);
+              setShowFallback(false);
               try {
                 await signInWithGoogle();
               } catch (err) {
@@ -164,6 +164,31 @@ export function LoginPage() {
               <ArrowRight size={16} weight="bold" className="ml-[4px]" />
             )}
           </button>
+
+          {/* Fallback manual link when redirect gets stuck */}
+          {showFallback && oauthUrl && (
+            <motion.div
+              initial={{ opacity: 0, y: -6 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="mt-[12px] text-center"
+            >
+              <p
+                className="text-[#4e6987] mb-[8px]"
+                style={{ fontSize: 12, ...ff }}
+              >
+                Redirect travou? Clique no link abaixo:
+              </p>
+              <a
+                href={oauthUrl}
+                className="inline-flex items-center gap-[6px] text-[#07abde] hover:text-[#0483AB] underline transition-colors"
+                style={{ fontSize: 13, fontWeight: 600, ...ff }}
+              >
+                <GoogleLogo size={16} weight="bold" />
+                Abrir login Google manualmente
+                <ArrowRight size={14} weight="bold" />
+              </a>
+            </motion.div>
+          )}
 
           {/* Domain error message */}
           {(authError || localError) && (

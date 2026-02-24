@@ -62,6 +62,8 @@ interface AuthContextValue {
   accessToken: string | null;
   /** Error message when domain is not allowed */
   authError: string | null;
+  /** OAuth URL for manual fallback link (when auto-redirect fails) */
+  oauthUrl: string | null;
 }
 
 const ALLOWED_DOMAIN = "htz.agency";
@@ -82,6 +84,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
   const [authError, setAuthError] = useState<string | null>(null);
+  const [oauthUrl, setOauthUrl] = useState<string | null>(null);
 
   /** Validate session domain — sign out if not allowed */
   const validateAndSetSession = useCallback(async (s: Session | null) => {
@@ -147,61 +150,78 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const signInWithGoogle = useCallback(async () => {
     setAuthError(null);
+    setOauthUrl(null);
 
-    // Always use skipBrowserRedirect for maximum control
     console.log("[Zenite Auth] Starting Google OAuth...");
-    console.log("[Zenite Auth] IS_PREVIEW:", IS_PREVIEW);
-    console.log("[Zenite Auth] Supabase URL:", supabaseUrl);
-    console.log("[Zenite Auth] redirectTo:", window.location.origin);
 
     try {
-      const { data, error } = await supabase.auth.signInWithOAuth({
-        provider: "google",
-        options: {
-          redirectTo: window.location.origin,
-          skipBrowserRedirect: true,
-        },
-      });
-
-      if (error) {
-        console.error("[Zenite Auth] OAuth error:", error.message, error);
-        setAuthError(`Erro no login Google: ${error.message}`);
-        return;
-      }
-
-      if (!data?.url) {
-        console.error("[Zenite Auth] No OAuth URL returned!", data);
-        setAuthError("Erro: nenhuma URL de autenticação retornada pelo Supabase.");
-        return;
-      }
-
-      console.log("[Zenite Auth] Got OAuth URL, redirecting:", data.url);
-
       if (!IS_PREVIEW) {
-        // Production: full-page redirect
-        window.location.href = data.url;
+        // Production: let Supabase SDK handle the redirect natively.
+        // We also get the URL for a manual fallback link.
+        const { data, error } = await supabase.auth.signInWithOAuth({
+          provider: "google",
+          options: {
+            redirectTo: window.location.origin,
+            skipBrowserRedirect: true,
+          },
+        });
+
+        if (error) {
+          console.error("[Zenite Auth] OAuth error:", error.message, error);
+          setAuthError(`Erro no login Google: ${error.message}`);
+          return;
+        }
+
+        if (!data?.url) {
+          console.error("[Zenite Auth] No OAuth URL returned!", data);
+          setAuthError("Erro: nenhuma URL de autenticação retornada.");
+          return;
+        }
+
+        console.log("[Zenite Auth] Got OAuth URL:", data.url);
+        // Save URL for manual fallback
+        setOauthUrl(data.url);
+
+        // Navigate using an anchor click (most reliable across browsers)
+        const a = document.createElement("a");
+        a.href = data.url;
+        a.rel = "noopener";
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
       } else {
         // Iframe/preview: popup approach
-        const popup = window.open(
-          data.url,
-          "google-oauth",
-          "width=500,height=650,popup=yes,left=200,top=100"
-        );
-
-        const pollInterval = setInterval(async () => {
-          try {
-            const { data: sessionData } = await supabase.auth.getSession();
-            if (sessionData?.session) {
-              clearInterval(pollInterval);
-              await validateAndSetSession(sessionData.session);
-              if (popup && !popup.closed) popup.close();
+        const { data, error } = await supabase.auth.signInWithOAuth({
+          provider: "google",
+          options: {
+            redirectTo: window.location.origin,
+            skipBrowserRedirect: true,
+          },
+        });
+        if (error) {
+          console.error("[Zenite Auth] OAuth error:", error.message);
+          return;
+        }
+        if (data?.url) {
+          const popup = window.open(
+            data.url,
+            "google-oauth",
+            "width=500,height=650,popup=yes,left=200,top=100"
+          );
+          const pollInterval = setInterval(async () => {
+            try {
+              const { data: sessionData } = await supabase.auth.getSession();
+              if (sessionData?.session) {
+                clearInterval(pollInterval);
+                await validateAndSetSession(sessionData.session);
+                if (popup && !popup.closed) popup.close();
+              }
+            } catch {
+              // ignore
             }
-          } catch {
-            // ignore
-          }
-        }, 1000);
-
-        setTimeout(() => clearInterval(pollInterval), 120_000);
+          }, 1000);
+          setTimeout(() => clearInterval(pollInterval), 120_000);
+        }
       }
     } catch (err) {
       console.error("[Zenite Auth] Unexpected error:", err);
@@ -224,6 +244,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     signOut,
     accessToken: session?.access_token ?? null,
     authError,
+    oauthUrl,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
@@ -250,6 +271,7 @@ export function useAuth() {
       signOut: async () => {},
       accessToken: null,
       authError: null,
+      oauthUrl: null,
     } as AuthContextValue;
   }
   return ctx;
