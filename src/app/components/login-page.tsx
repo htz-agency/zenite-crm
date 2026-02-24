@@ -7,7 +7,7 @@
 
 import { useAuth, IS_PREVIEW } from "./auth-context";
 import { motion } from "motion/react";
-import { GoogleLogo, ShieldCheck, ArrowRight, WarningCircle } from "@phosphor-icons/react";
+import { GoogleLogo, ShieldCheck, ArrowRight, WarningCircle, SpinnerGap } from "@phosphor-icons/react";
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router";
 import ZeniteLogo from "../../imports/Camada1";
@@ -18,6 +18,7 @@ export function LoginPage() {
   const { signInWithGoogle, loading, session, authError } = useAuth();
   const navigate = useNavigate();
   const [localError, setLocalError] = useState<string | null>(null);
+  const [redirecting, setRedirecting] = useState(false);
 
   // In preview (iframe) mode, skip login entirely — RequireAuth already bypasses
   // Also redirect if already authenticated
@@ -26,6 +27,18 @@ export function LoginPage() {
       navigate("/price", { replace: true });
     }
   }, [loading, session, navigate]);
+
+  // Safety: if redirecting takes too long (>8s), something went wrong
+  useEffect(() => {
+    if (!redirecting) return;
+    const t = setTimeout(() => {
+      setRedirecting(false);
+      setLocalError(
+        "O redirecionamento para o Google não completou. Verifique se popups/redirects não estão bloqueados pelo navegador."
+      );
+    }, 8000);
+    return () => clearTimeout(t);
+  }, [redirecting]);
 
   return (
     <div className="min-h-screen w-full flex items-center justify-center bg-[#122232] relative overflow-hidden">
@@ -117,20 +130,26 @@ export function LoginPage() {
           <button
             onClick={async () => {
               setLocalError(null);
+              setRedirecting(true);
               try {
                 await signInWithGoogle();
               } catch (err) {
                 console.error("[Zenite Login] Button click error:", err);
                 setLocalError(`Erro ao iniciar login: ${String(err)}`);
+                setRedirecting(false);
               }
             }}
-            disabled={loading}
+            disabled={loading || redirecting}
             className="w-full flex items-center justify-center gap-[10px] h-[48px] rounded-[500px] bg-[#28415c] text-white hover:bg-[#1a2d40] active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer transition-all"
             style={{
               boxShadow: "0 2px 8px rgba(18,34,50,0.3)",
             }}
           >
-            <GoogleLogo size={20} weight="bold" />
+            {redirecting ? (
+              <SpinnerGap size={20} weight="bold" className="animate-spin" />
+            ) : (
+              <GoogleLogo size={20} weight="bold" />
+            )}
             <span
               style={{
                 fontSize: 15,
@@ -139,9 +158,11 @@ export function LoginPage() {
                 ...ff,
               }}
             >
-              Entrar com Google
+              {redirecting ? "Redirecionando para Google..." : "Entrar com Google"}
             </span>
-            <ArrowRight size={16} weight="bold" className="ml-[4px]" />
+            {!redirecting && (
+              <ArrowRight size={16} weight="bold" className="ml-[4px]" />
+            )}
           </button>
 
           {/* Domain error message */}

@@ -146,76 +146,68 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [validateAndSetSession]);
 
   const signInWithGoogle = useCallback(async () => {
-    // In production (not iframe), use direct redirect for reliable OAuth
-    if (!IS_PREVIEW) {
-      console.log("[Zenite Auth] Starting Google OAuth redirect flow...");
-      console.log("[Zenite Auth] IS_PREVIEW:", IS_PREVIEW);
-      console.log("[Zenite Auth] redirectTo:", window.location.origin);
-      try {
-        const { data, error } = await supabase.auth.signInWithOAuth({
-          provider: "google",
-          options: {
-            redirectTo: window.location.origin,
-          },
-        });
-        if (error) {
-          console.error("[Zenite Auth] OAuth error:", error.message, error);
-          setAuthError(`Erro no login Google: ${error.message}`);
-          return;
-        }
-        console.log("[Zenite Auth] OAuth response data:", data);
-        // signInWithOAuth should auto-redirect; if it didn't, something is wrong
-        if (data?.url) {
-          console.log("[Zenite Auth] Redirecting to:", data.url);
-          window.location.href = data.url;
-        }
-      } catch (err) {
-        console.error("[Zenite Auth] Unexpected error:", err);
-        setAuthError(`Erro inesperado no login: ${String(err)}`);
+    setAuthError(null);
+
+    // Always use skipBrowserRedirect for maximum control
+    console.log("[Zenite Auth] Starting Google OAuth...");
+    console.log("[Zenite Auth] IS_PREVIEW:", IS_PREVIEW);
+    console.log("[Zenite Auth] Supabase URL:", supabaseUrl);
+    console.log("[Zenite Auth] redirectTo:", window.location.origin);
+
+    try {
+      const { data, error } = await supabase.auth.signInWithOAuth({
+        provider: "google",
+        options: {
+          redirectTo: window.location.origin,
+          skipBrowserRedirect: true,
+        },
+      });
+
+      if (error) {
+        console.error("[Zenite Auth] OAuth error:", error.message, error);
+        setAuthError(`Erro no login Google: ${error.message}`);
+        return;
       }
-      return;
-    }
 
-    // In iframe/preview mode, use popup approach
-    const { data, error } = await supabase.auth.signInWithOAuth({
-      provider: "google",
-      options: {
-        redirectTo: window.location.origin,
-        skipBrowserRedirect: true,
-      },
-    });
-    if (error) {
-      console.log("Error signing in with Google:", error.message);
-      return;
-    }
-    if (data?.url) {
-      // Open in a popup window to avoid iframe restrictions
-      const popup = window.open(
-        data.url,
-        "google-oauth",
-        "width=500,height=650,popup=yes,left=200,top=100"
-      );
+      if (!data?.url) {
+        console.error("[Zenite Auth] No OAuth URL returned!", data);
+        setAuthError("Erro: nenhuma URL de autenticação retornada pelo Supabase.");
+        return;
+      }
 
-      // Poll for session in case storage events don't work in iframe
-      const pollInterval = setInterval(async () => {
-        try {
-          const { data: sessionData } = await supabase.auth.getSession();
-          if (sessionData?.session) {
-            clearInterval(pollInterval);
-            await validateAndSetSession(sessionData.session);
-            if (popup && !popup.closed) {
-              popup.close();
+      console.log("[Zenite Auth] Got OAuth URL, redirecting:", data.url);
+
+      if (!IS_PREVIEW) {
+        // Production: full-page redirect
+        window.location.href = data.url;
+      } else {
+        // Iframe/preview: popup approach
+        const popup = window.open(
+          data.url,
+          "google-oauth",
+          "width=500,height=650,popup=yes,left=200,top=100"
+        );
+
+        const pollInterval = setInterval(async () => {
+          try {
+            const { data: sessionData } = await supabase.auth.getSession();
+            if (sessionData?.session) {
+              clearInterval(pollInterval);
+              await validateAndSetSession(sessionData.session);
+              if (popup && !popup.closed) popup.close();
             }
+          } catch {
+            // ignore
           }
-        } catch {
-          // ignore polling errors
-        }
-      }, 1000);
+        }, 1000);
 
-      // Stop polling after 2 minutes
-      setTimeout(() => clearInterval(pollInterval), 120_000);
+        setTimeout(() => clearInterval(pollInterval), 120_000);
+      }
+    } catch (err) {
+      console.error("[Zenite Auth] Unexpected error:", err);
+      setAuthError(`Erro inesperado no login: ${String(err)}`);
     }
-  }, []);
+  }, [validateAndSetSession]);
 
   const signOut = useCallback(async () => {
     const { error } = await supabase.auth.signOut();
