@@ -1,7 +1,7 @@
 
-  # Zenite Price
+  # Zenite
 
-  This is a code bundle for Zenite Price. The original project is available at https://www.figma.com/design/bUJGKgHkVnSYqMQwAeUzz0/Zenite-Price.
+  This is a code bundle for Zenite. The original project is available at https://www.figma.com/design/bUJGKgHkVnSYqMQwAeUzz0/Zenite.
 
   ## Running the code
 

@@ -18,6 +18,7 @@ import {
   ClipboardText,
 } from "@phosphor-icons/react";
 import { formatCurrency } from "./pricing-data";
+import { PillButton } from "./pill-button";
 import { getDashboardStats, listProposals, seedServices, listDbServices, debugServiceColumns, type DbProposal, type DashboardStats } from "./api";
 
 const statusConfig: Record<string, { label: string; bg: string; text: string }> = {
@@ -36,7 +37,7 @@ const serviceGroups = [
     color: "text-[#0483AB]",
     bg: "bg-[#DCF0FF]",
     count: 6,
-    link: "/servicos/performance",
+    link: "/price/servicos/performance",
   },
   {
     title: "Sales OPS",
@@ -45,7 +46,7 @@ const serviceGroups = [
     color: "text-[#3CCEA7]",
     bg: "bg-[#D9F8EF]",
     count: 6,
-    link: "/servicos/sales-ops",
+    link: "/price/servicos/sales-ops",
   },
   {
     title: "Brand & Co",
@@ -54,7 +55,7 @@ const serviceGroups = [
     color: "text-[#ED5200]",
     bg: "bg-[#FFEDEB]",
     count: 6,
-    link: "/servicos/brand-co",
+    link: "/price/servicos/brand-co",
   },
 ];
 
@@ -105,45 +106,51 @@ export function Dashboard() {
   useEffect(() => {
     (async () => {
       try {
-        // Auto-seed services if table is empty
-        try {
-          const dbServices = await listDbServices();
-          if (!dbServices || dbServices.length === 0) {
-            console.log("price_services table is empty, auto-seeding...");
-            try {
-              await seedServices();
-              setSeedStatus("ok");
-            } catch (seedErr) {
-              console.error("Error seeding services:", seedErr);
-              setSeedStatus("error");
-              // Run diagnostics automatically
-              try {
-                const diag = await debugServiceColumns();
-                setDebugInfo(diag);
-                console.log("Auto-seed failed, debug info:", diag);
-              } catch {}
-            }
-          } else {
-            setSeedStatus("ok");
-          }
-        } catch (listErr) {
-          console.error("Error listing services:", listErr);
-          setSeedStatus("error");
+        // Auto-seed services if table is empty — non-blocking
+        (async () => {
           try {
-            const diag = await debugServiceColumns();
-            setDebugInfo(diag);
-            console.log("List failed, debug info:", diag);
-          } catch {}
-        }
+            const dbServices = await listDbServices();
+            if (!dbServices || dbServices.length === 0) {
+              console.log("price_services table is empty, auto-seeding...");
+              try {
+                await seedServices();
+                setSeedStatus("ok");
+              } catch (seedErr) {
+                console.error("Error seeding services:", seedErr);
+                setSeedStatus("error");
+              }
+            } else {
+              setSeedStatus("ok");
+            }
+          } catch (listErr) {
+            console.error("Error listing services:", listErr);
+            setSeedStatus("error");
+          }
+        })();
 
-        const [statsData, proposals] = await Promise.all([
+        // Load dashboard data — each call independent so one failure doesn't block the other
+        const [statsResult, proposalsResult] = await Promise.allSettled([
           getDashboardStats(),
           listProposals(),
         ]);
-        setStats(statsData);
-        setRecentProposals(proposals.slice(0, 5));
+
+        if (statsResult.status === "fulfilled") {
+          setStats(statsResult.value);
+        } else {
+          console.error("Error loading dashboard stats:", statsResult.reason);
+          // Use default empty stats so the UI still renders
+          setStats({ total: 0, enviadas: 0, aprovadas: 0, pendentes: 0, receitaEstimada: 0 });
+        }
+
+        if (proposalsResult.status === "fulfilled") {
+          setRecentProposals(proposalsResult.value.slice(0, 5));
+        } else {
+          console.error("Error loading proposals:", proposalsResult.reason);
+        }
       } catch (err) {
         console.error("Error loading dashboard:", err);
+        // Ensure stats is non-null so the UI renders
+        setStats({ total: 0, enviadas: 0, aprovadas: 0, pendentes: 0, receitaEstimada: 0 });
       } finally {
         setLoading(false);
       }
@@ -189,18 +196,13 @@ export function Dashboard() {
             Visão geral de precificação e propostas
           </p>
         </div>
-        <button
-          onClick={() => navigate("/nova-proposta")}
-          className="flex items-center gap-[3px] h-[40px] pl-[16px] pr-[20px] rounded-full bg-[#DCF0FF] text-[#28415C] hover:bg-[#cce7fb] transition-colors cursor-pointer w-full sm:w-auto justify-center"
+        <PillButton
+          onClick={() => navigate("/price/nova-proposta")}
+          icon={<Plus size={16} weight="bold" />}
+          className="w-full sm:w-auto justify-center"
         >
-          <Plus size={16} weight="bold" />
-          <span
-            className="font-normal"
-            style={{ fontSize: 15, letterSpacing: -0.5, lineHeight: "22px" }}
-          >
-            Nova Proposta
-          </span>
-        </button>
+          Nova Proposta
+        </PillButton>
       </div>
 
       {/* Stats */}
@@ -297,7 +299,7 @@ export function Dashboard() {
             </span>
           </div>
           <button
-            onClick={() => navigate("/propostas")}
+            onClick={() => navigate("/price/propostas")}
             className="flex items-center gap-[3px] h-[34px] px-[14px] rounded-full bg-[#f6f7f9] text-[#28415c] hover:bg-[#dde3ec] transition-colors cursor-pointer"
             style={{ fontSize: 10, fontWeight: 700, letterSpacing: 0.5, textTransform: "uppercase" as const, fontFeatureSettings: "'ss01', 'ss04', 'ss05', 'ss07'" }}
           >
@@ -314,18 +316,13 @@ export function Dashboard() {
           <div className="py-10 text-center">
             <FileText size={36} className="text-[#C8CFDB] mx-auto mb-2" />
             <p className="text-[#4E6987]" style={{ fontSize: 14 }}>Nenhuma proposta ainda.</p>
-            <button
-              onClick={() => navigate("/nova-proposta")}
-              className="mt-3 flex items-center gap-[3px] mx-auto h-[40px] pl-[16px] pr-[20px] rounded-full bg-[#DCF0FF] text-[#28415C] hover:bg-[#cce7fb] transition-colors cursor-pointer"
+            <PillButton
+              onClick={() => navigate("/price/nova-proposta")}
+              icon={<Plus size={16} weight="bold" />}
+              className="mt-3 mx-auto"
             >
-              <Plus size={16} weight="bold" />
-              <span
-                className="font-normal"
-                style={{ fontSize: 15, letterSpacing: -0.5, lineHeight: "22px" }}
-              >
-                Criar primeira proposta
-              </span>
-            </button>
+              Criar primeira proposta
+            </PillButton>
           </div>
         ) : (
           <>
@@ -344,7 +341,7 @@ export function Dashboard() {
                       </div>
                     </div>
                     <div
-                      onClick={() => navigate(`/propostas/${proposal.id}`)}
+                      onClick={() => navigate(`/price/propostas/${proposal.id}`)}
                       className="px-3 mx-2 py-2.5 flex items-center justify-between gap-3 cursor-pointer rounded-[100px] hover:bg-[#F6F7F9] transition-colors"
                     >
                       <div className="min-w-0 flex items-center gap-3">
@@ -433,7 +430,7 @@ export function Dashboard() {
                         </div>
                       </div>
                       <div
-                        onClick={() => navigate(`/propostas/${proposal.id}`)}
+                        onClick={() => navigate(`/price/propostas/${proposal.id}`)}
                         className="grid items-center h-[34px] px-3 mx-2 cursor-pointer rounded-[100px] hover:bg-[#f6f7f9] transition-colors"
                         style={{ gridTemplateColumns: "28px 90px 1fr 120px 100px 110px", gap: "0 8px" }}
                       >

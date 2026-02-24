@@ -15,12 +15,25 @@ import {
   Plus,
   Package,
   DotsNine,
+  DotsThree,
   Gear,
   SelectionPlus,
   Sidebar as SidebarIcon,
+  UsersThree,
+  Megaphone,
+  ArrowsClockwise,
+  ChartBar,
+  TreeStructure,
+  ProjectorScreenChart,
+  CheckFat,
+  Buildings,
+  SignOut,
 } from "@phosphor-icons/react";
 import { useState, useEffect, useRef, type ReactNode } from "react";
+import { AnimatePresence, motion } from "motion/react";
 import LogoZenitePrice from "../../imports/LogoZenitePrice1";
+import { PillButton } from "./pill-button";
+import { useAuth } from "./auth-context";
 
 /* ------------------------------------------------------------------ */
 /*  Types                                                              */
@@ -47,6 +60,7 @@ interface PanelSection {
 interface PanelItem {
   to: string;
   icon: ReactNode;
+  activeIcon: ReactNode;
   label: string;
 }
 
@@ -57,55 +71,55 @@ interface PanelItem {
 const railItems: RailItem[] = [
   {
     id: "home",
-    icon: <Layout size={20} weight="regular" />,
+    icon: <Layout size={20} weight="duotone" />,
     activeIcon: <Layout size={20} weight="fill" />,
     label: "Dash",
-    directTo: "/",
+    directTo: "/price",
   },
   {
     id: "gestao",
-    icon: <ClipboardText size={20} weight="regular" />,
+    icon: <ClipboardText size={20} weight="duotone" />,
     activeIcon: <ClipboardText size={20} weight="fill" />,
     label: "Propostas",
-    actionButton: { to: "/nova-proposta", label: "Nova Proposta" },
+    actionButton: { to: "/price/nova-proposta", label: "Nova Proposta" },
     sections: [
       {
         title: "Propostas",
         items: [
-          { to: "/propostas", icon: <ListBullets size={18} weight="duotone" />, label: "Lista de Propostas" },
+          { to: "/price/propostas", icon: <ListBullets size={18} weight="duotone" />, activeIcon: <ListBullets size={18} weight="fill" />, label: "Todas Propostas" },
         ],
       },
       {
         title: "Preços",
         items: [
-          { to: "/tabela-precos", icon: <Tag size={18} weight="duotone" />, label: "Tabela de Preços" },
+          { to: "/price/tabela-precos", icon: <Tag size={18} weight="duotone" />, activeIcon: <Tag size={18} weight="fill" />, label: "Lista de Preços" },
         ],
       },
     ],
   },
   {
     id: "servicos",
-    icon: <Package size={20} weight="regular" />,
+    icon: <Package size={20} weight="duotone" />,
     activeIcon: <Package size={20} weight="fill" />,
     label: "Serviços",
-    actionButton: { to: "/novo-servico", label: "Adicionar Serviço" },
+    actionButton: { to: "/price/novo-servico", label: "Adicionar Serviço" },
     sections: [
       {
         title: "Categorias",
         items: [
-          { to: "/servicos/performance", icon: <Speedometer size={18} weight="duotone" />, label: "Performance" },
-          { to: "/servicos/sales-ops", icon: <RocketLaunch size={18} weight="duotone" />, label: "Sales OPS" },
-          { to: "/servicos/brand-co", icon: <CompassTool size={18} weight="duotone" />, label: "Brand & Co" },
+          { to: "/price/servicos/performance", icon: <Speedometer size={18} weight="duotone" />, activeIcon: <Speedometer size={18} weight="fill" />, label: "Performance" },
+          { to: "/price/servicos/sales-ops", icon: <RocketLaunch size={18} weight="duotone" />, activeIcon: <RocketLaunch size={18} weight="fill" />, label: "Sales OPS" },
+          { to: "/price/servicos/brand-co", icon: <CompassTool size={18} weight="duotone" />, activeIcon: <CompassTool size={18} weight="fill" />, label: "Brand & Co" },
         ],
       },
     ],
   },
   {
     id: "configuracoes",
-    icon: <Gear size={20} weight="regular" />,
+    icon: <Gear size={20} weight="duotone" />,
     activeIcon: <Gear size={20} weight="fill" />,
     label: "Ajustes",
-    directTo: "/ajustes",
+    directTo: "/price/ajustes",
   },
 ];
 
@@ -129,7 +143,7 @@ function getFirstRoute(item: RailItem): string | null {
 
 function railOwnsPath(item: RailItem, pathname: string): boolean {
   if (item.directTo !== undefined) {
-    return item.directTo === "/" ? pathname === "/" : pathname.startsWith(item.directTo);
+    return item.directTo === "/price" ? pathname === "/price" : pathname.startsWith(item.directTo);
   }
   // Check action button route
   if (item.actionButton) {
@@ -148,6 +162,32 @@ function railOwnsPath(item: RailItem, pathname: string): boolean {
 }
 
 /* ------------------------------------------------------------------ */
+/*  Zenite App Modules                                                 */
+/* ------------------------------------------------------------------ */
+
+interface ZeniteModule {
+  id: string;
+  name: string;
+  abbr: string;
+  icon: React.ComponentType<{ size?: number; weight?: string; style?: React.CSSProperties }>;
+  bg: string;
+  color: string;
+  route?: string;
+}
+
+const zeniteModules: ZeniteModule[] = [
+  { id: "prc", name: "Price", abbr: "PRC", icon: CurrencyDollar, bg: "#DCF0FF", color: "#07ABDE", route: "/price" },
+  { id: "crm", name: "CRM", abbr: "CRM", icon: UsersThree, bg: "#DCF0FF", color: "#0483AB", route: "/crm" },
+  { id: "mkt", name: "Marketing", abbr: "MKT", icon: Megaphone, bg: "#FEEDCA", color: "#917822" },
+  { id: "syc", name: "Sync", abbr: "SYC", icon: ArrowsClockwise, bg: "#D9F8EF", color: "#3CCEA7" },
+  { id: "dsh", name: "Dashboard", abbr: "DSH", icon: ChartBar, bg: "#EBF1FA", color: "#4E6987" },
+  { id: "flw", name: "Flow", abbr: "FLW", icon: TreeStructure, bg: "#FFEDEB", color: "#ED5200" },
+  { id: "pjt", name: "Projects", abbr: "PJT", icon: ProjectorScreenChart, bg: "#E8E8FD", color: "#6868B1" },
+  { id: "tsk", name: "Tasks", abbr: "TSK", icon: CheckFat, bg: "#F0EBFF", color: "#8B5CF6" },
+  { id: "htz", name: "HTZ", abbr: "HTZ", icon: Buildings, bg: "#DBEAFE", color: "#3B82F6" },
+];
+
+/* ------------------------------------------------------------------ */
 /*  Sidebar component                                                  */
 /* ------------------------------------------------------------------ */
 
@@ -160,6 +200,11 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
   const location = useLocation();
   const navigate = useNavigate();
   const panelRef = useRef<HTMLDivElement>(null);
+  const appDrawerRef = useRef<HTMLDivElement>(null);
+  const { user, signOut } = useAuth();
+
+  // App drawer state
+  const [showAppDrawer, setShowAppDrawer] = useState(false);
 
   // Which rail item is expanded (showing panel)
   const [expandedRail, setExpandedRail] = useState<string | null>(() => {
@@ -188,7 +233,27 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
   // Close mobile sidebar on route change
   useEffect(() => {
     if (onClose) onClose();
+    setShowAppDrawer(false);
   }, [location.pathname]);
+
+  // Close app drawer on click outside or Escape
+  useEffect(() => {
+    if (!showAppDrawer) return;
+    const handleClickOutside = (e: MouseEvent) => {
+      if (appDrawerRef.current && !appDrawerRef.current.contains(e.target as Node)) {
+        setShowAppDrawer(false);
+      }
+    };
+    const handleEscape = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setShowAppDrawer(false);
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    document.addEventListener("keydown", handleEscape);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+      document.removeEventListener("keydown", handleEscape);
+    };
+  }, [showAppDrawer]);
 
   const handleRailClick = (item: RailItem) => {
     if (item.directTo) {
@@ -223,17 +288,17 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
       {/* Sidebar toggle */}
       <button
         onClick={() => {
-          if (location.pathname === "/") return;
+          if (location.pathname === "/price") return;
           setExpandedRail(expandedRail ? null : (railItems.find(r => r.sections) || railItems[0]).id);
         }}
         className={`flex items-center justify-center w-10 h-10 rounded-xl transition-colors mb-4 mt-1 shrink-0 ${
-          location.pathname === "/"
+          location.pathname === "/price"
             ? "text-[#98989d] cursor-default"
             : "text-[#4E6987] hover:bg-[#28415C]/10 hover:text-[#28415C] cursor-pointer"
         }`}
-        disabled={location.pathname === "/"}
+        disabled={location.pathname === "/price"}
       >
-        <SidebarIcon size={20} weight="regular" />
+        <SidebarIcon size={20} weight="duotone" />
       </button>
 
       {/* Nav items */}
@@ -305,11 +370,11 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
 
           {/* Atalho button */}
           <button
-            onClick={() => navigate("/atalho")}
+            onClick={() => navigate("/price/atalho")}
             className="flex flex-col items-center gap-0.5 transition-all group cursor-pointer"
           >
             <div className="flex items-center justify-center h-[32px] w-[32px] rounded-full text-[#4E6987] group-hover:w-[42px] group-hover:bg-[#28415C]/10 group-hover:text-[#28415C] transition-all">
-              <SelectionPlus size={20} weight="regular" />
+              <SelectionPlus size={20} weight="duotone" />
             </div>
             <span
               className="text-[#4E6987] group-hover:text-[#28415C] transition-colors"
@@ -328,8 +393,121 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
 
       {/* Avatar bottom */}
       <div className="mt-auto pt-3">
-        <div className="flex items-center justify-center w-10 h-10 rounded-xl text-[#4E6987] hover:bg-[#28415C]/10 hover:text-[#28415C] cursor-pointer transition-colors">
-          <DotsNine size={20} weight="bold" />
+        {/* User avatar with sign out */}
+        {user && (
+          <div className="flex flex-col items-center gap-2 mb-2">
+            <button
+              onClick={signOut}
+              title="Sair"
+              className="flex items-center justify-center w-10 h-10 rounded-xl text-[#4E6987] hover:bg-[#FFEDEB] hover:text-[#f56233] cursor-pointer transition-all"
+            >
+              <SignOut size={18} weight="duotone" />
+            </button>
+            {user.user_metadata?.avatar_url ? (
+              <img
+                src={user.user_metadata.avatar_url}
+                alt=""
+                className="w-[32px] h-[32px] rounded-full object-cover ring-2 ring-[#DDE3EC]"
+              />
+            ) : (
+              <div
+                className="flex items-center justify-center w-[32px] h-[32px] rounded-full bg-[#07ABDE] text-white"
+                style={{ fontSize: 12, fontWeight: 700 }}
+                title={user.email ?? ""}
+              >
+                {(user.user_metadata?.name || user.email || "U").charAt(0).toUpperCase()}
+              </div>
+            )}
+          </div>
+        )}
+        <div className="relative" ref={appDrawerRef}>
+          <div
+            onClick={() => setShowAppDrawer(v => !v)}
+            className={`relative flex items-center justify-center w-10 h-10 rounded-xl cursor-pointer transition-all ${
+              showAppDrawer
+                ? "bg-[#28415C] text-[#F6F7F9]"
+                : "text-[#4E6987] hover:bg-[#28415C]/10 hover:text-[#28415C]"
+            }`}
+            style={showAppDrawer ? { boxShadow: "0px 2px 4px 0px rgba(18,34,50,0.3)" } : undefined}
+          >
+            <DotsNine size={20} weight={showAppDrawer ? "fill" : "duotone"} />
+            {showAppDrawer && (
+              <div
+                className="absolute inset-0 rounded-xl pointer-events-none"
+                style={{ border: "0.7px solid rgba(200,207,219,0.6)" }}
+              />
+            )}
+          </div>
+
+          <AnimatePresence>
+            {showAppDrawer && (
+              <motion.div
+                initial={{ opacity: 0, y: 8, scale: 0.96 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                exit={{ opacity: 0, y: 8, scale: 0.96 }}
+                transition={{ duration: 0.2, ease: [0.4, 0, 0.2, 1] }}
+                className="absolute bottom-0 left-[calc(100%+12px)] w-[264px] bg-white rounded-[16px] p-4 z-50"
+                style={{
+                  boxShadow: "0px 12px 32px rgba(18,34,50,0.12), 0px 2px 8px rgba(18,34,50,0.06)",
+                  border: "0.7px solid rgba(200,207,219,0.4)",
+                }}
+              >
+                <p
+                  className="text-[#98989d] px-1 mb-3"
+                  style={{ fontSize: 10, fontWeight: 700, letterSpacing: 0.5, textTransform: "uppercase", lineHeight: "20px" }}
+                >
+                  Aplicativos
+                </p>
+                <div className="grid grid-cols-3 gap-1">
+                  {zeniteModules.map(app => {
+                    const Icon = app.icon;
+                    const isActive = app.route ? location.pathname.startsWith(app.route) : false;
+                    return (
+                      <motion.button
+                        key={app.id}
+                        whileHover={{ scale: 1.06 }}
+                        whileTap={{ scale: 0.94 }}
+                        transition={{ type: "spring", stiffness: 400, damping: 25 }}
+                        className={`flex flex-col items-center gap-1.5 py-3 px-2 rounded-[12px] cursor-pointer transition-colors ${
+                          isActive
+                            ? "bg-[#F6F7F9] hover:bg-[#DDE3EC]"
+                            : "hover:bg-[#F6F7F9]"
+                        }`}
+                        onClick={() => {
+                          if (app.route) {
+                            navigate(app.route);
+                            setShowAppDrawer(false);
+                          }
+                        }}
+                      >
+                        <div
+                          className="flex items-center justify-center w-[40px] h-[40px] rounded-[10px]"
+                          style={{ backgroundColor: app.bg }}
+                        >
+                          <Icon size={22} weight="duotone" style={{ color: app.color }} />
+                        </div>
+                        <div className="flex flex-col items-center">
+                          <span
+                            style={{ fontSize: 11, fontWeight: 700, letterSpacing: -0.3, lineHeight: "14px", color: "#122232" }}
+                          >
+                            {app.abbr}
+                          </span>
+                          <span
+                            style={{ fontSize: 9, fontWeight: 500, letterSpacing: -0.2, lineHeight: "13px", color: "#98989d" }}
+                          >
+                            {app.name}
+                          </span>
+                        </div>
+                        {isActive && (
+                          <div className="w-[4px] h-[4px] rounded-full bg-[#07ABDE] -mt-0.5" />
+                        )}
+                      </motion.button>
+                    );
+                  })}
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
         </div>
       </div>
     </div>
@@ -351,22 +529,12 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
       {/* Action button (e.g. Nova Proposta) */}
       {expandedItem.actionButton && (
         <div className="px-4 pt-4 pb-1">
-          <button
+          <PillButton
             onClick={() => navigate(expandedItem.actionButton!.to)}
-            className="flex items-center gap-[3px] h-[40px] pl-[16px] pr-[20px] rounded-full bg-[#DCF0FF] text-[#28415C] hover:bg-[#cce7fb] transition-colors cursor-pointer"
+            icon={<Plus size={16} weight="bold" />}
           >
-            <Plus size={16} weight="bold" />
-            <span
-              className="font-normal"
-              style={{
-                fontSize: 15,
-                letterSpacing: -0.5,
-                lineHeight: "22px",
-              }}
-            >
-              {expandedItem.actionButton.label}
-            </span>
-          </button>
+            {expandedItem.actionButton.label}
+          </PillButton>
         </div>
       )}
 
@@ -388,30 +556,59 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
                 </button>
               )}
               {!isCollapsed && (
-                <div className="flex flex-col gap-0.5 mt-0.5">
+                <div className="flex flex-col gap-[2px] mt-0.5 px-3">
                   {section.items.map((subItem) => (
                     <NavLink
                       key={subItem.to}
                       to={subItem.to}
                       end={subItem.to === "/"}
                       className={({ isActive }) =>
-                        `flex items-center gap-3 mx-3 px-3 h-[32px] rounded-full transition-all ${
+                        `group/item relative flex items-center gap-[10px] pl-[6px] py-[6px] transition-all cursor-pointer ${
                           isActive
-                            ? "bg-[#28415C] text-white"
-                            : "text-[#4E6987] hover:bg-[#28415C]/10 hover:text-[#28415C]"
+                            ? "rounded-[100px] bg-[#28415c] backdrop-blur-[50px] pr-[22px]"
+                            : "rounded-[8px] hover:rounded-[100px] hover:bg-[#dde3ec] pr-[22px]"
                         }`
                       }
-                      style={({ isActive }) =>
-                        isActive
-                          ? {
-                              boxShadow: "0px 2px 4px 0px rgba(18,34,50,0.3)",
-                              border: "0.7px solid rgba(200,207,219,0.6)",
-                            }
-                          : undefined
-                      }
                     >
-                      <span className="flex items-center justify-center w-5 h-5 shrink-0">{subItem.icon}</span>
-                      <span style={{ fontSize: 13, fontWeight: 500 }}>{subItem.label}</span>
+                      {({ isActive }) => (
+                        <>
+                          {/* Selected-state border + shadow overlay */}
+                          {isActive && (
+                            <div
+                              aria-hidden="true"
+                              className="absolute inset-0 rounded-[100px] pointer-events-none"
+                              style={{
+                                border: "0.7px solid rgba(200,207,219,0.6)",
+                                boxShadow: "0px 2px 4px 0px rgba(18,34,50,0.3)",
+                              }}
+                            />
+                          )}
+                          {/* Icon container */}
+                          <span className={`flex items-center justify-center size-[28px] rounded-[6px] shrink-0 ${
+                            isActive ? "text-[#f6f7f9]" : "text-[#4e6987]"
+                          }`}>
+                            {isActive ? subItem.activeIcon : subItem.icon}
+                          </span>
+                          {/* Label */}
+                          <span
+                            className={`flex-1 ${isActive ? "text-[#f6f7f9]" : "text-[#4e6987]"}`}
+                            style={{
+                              fontSize: 13,
+                              fontWeight: 500,
+                              letterSpacing: -0.5,
+                              lineHeight: "22px",
+                            }}
+                          >
+                            {subItem.label}
+                          </span>
+                          {/* Hover-only three dots */}
+                          {!isActive && (
+                            <span className="flex items-center justify-center size-[20px] shrink-0 text-[#4e6987] opacity-0 group-hover/item:opacity-100 transition-opacity">
+                              <DotsThree size={16} weight="bold" />
+                            </span>
+                          )}
+                        </>
+                      )}
                     </NavLink>
                   ))}
                 </div>

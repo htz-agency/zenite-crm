@@ -86,7 +86,7 @@ export function NewService() {
       toast.success(`Serviço "${name}" criado com sucesso!`);
       // Navigate to the group page
       const groupRoute = group === "sales_ops" ? "sales-ops" : group === "brand_co" ? "brand-co" : "performance";
-      navigate(`/servicos/${groupRoute}`);
+      navigate(`/price/servicos/${groupRoute}`);
     } catch (err) {
       console.error("Error creating service:", err);
       toast.error(`Erro ao criar serviço: ${err instanceof Error ? err.message : err}`);

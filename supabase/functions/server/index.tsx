@@ -620,7 +620,7 @@ app.get(`${PREFIX}/public/proposal/:token`, async (c) => {
     const proposalId = await kv.get(`proposal_share:${token}`);
 
     if (!proposalId) {
-      return c.json({ error: "Link inv\u00e1lido ou expirado." }, 404);
+      return c.json({ error: "Link inválido ou expirado." }, 404);
     }
 
     const db = supabase();
@@ -631,7 +631,7 @@ app.get(`${PREFIX}/public/proposal/:token`, async (c) => {
       .single();
 
     if (error || !proposal) {
-      return c.json({ error: "Proposta n\u00e3o encontrada." }, 404);
+      return c.json({ error: "Proposta não encontrada." }, 404);
     }
 
     return c.json({ data: proposal });
@@ -653,7 +653,7 @@ app.patch(`${PREFIX}/public/proposal/:token/respond`, async (c) => {
 
     const proposalId = await kv.get(`proposal_share:${token}`);
     if (!proposalId) {
-      return c.json({ error: "Link inv\u00e1lido ou expirado." }, 404);
+      return c.json({ error: "Link inválido ou expirado." }, 404);
     }
 
     const db = supabase();
@@ -720,74 +720,74 @@ app.get(`${PREFIX}/dashboard/stats`, async (c) => {
 
 const SERVICE_CATALOG = [
   {
-    id: "perf-google-ads", name: "Gest\u00e3o de Google Ads", service_group: "performance",
-    description: "Cria\u00e7\u00e3o, gest\u00e3o e otimiza\u00e7\u00e3o de campanhas no Google Ads (Search, Display, Shopping, YouTube).",
+    id: "perf-google-ads", name: "Gestão de Google Ads", service_group: "performance",
+    description: "Criação, gestão e otimização de campanhas no Google Ads (Search, Display, Shopping, YouTube).",
     base_price: 2500, impl_price: 1500, hours_estimate: 20, is_ads: true,
     complexity_basico: 1, complexity_intermediario: 1.6, complexity_avancado: 2.4,
   },
   {
-    id: "perf-meta-ads", name: "Gest\u00e3o de Meta Ads", service_group: "performance",
-    description: "Campanhas de performance em Facebook e Instagram Ads com estrat\u00e9gia de funil completo.",
+    id: "perf-meta-ads", name: "Gestão de Meta Ads", service_group: "performance",
+    description: "Campanhas de performance em Facebook e Instagram Ads com estratégia de funil completo.",
     base_price: 2200, impl_price: 1200, hours_estimate: 18, is_ads: true,
     complexity_basico: 1, complexity_intermediario: 1.5, complexity_avancado: 2.2,
   },
   {
-    id: "perf-linkedin-ads", name: "Gest\u00e3o de LinkedIn Ads", service_group: "performance",
-    description: "Campanhas B2B no LinkedIn com segmenta\u00e7\u00e3o avan\u00e7ada por cargo, empresa e setor.",
+    id: "perf-linkedin-ads", name: "Gestão de LinkedIn Ads", service_group: "performance",
+    description: "Campanhas B2B no LinkedIn com segmentação avançada por cargo, empresa e setor.",
     base_price: 3000, impl_price: 1800, hours_estimate: 16, is_ads: true,
     complexity_basico: 1, complexity_intermediario: 1.5, complexity_avancado: 2.0,
   },
   {
-    id: "perf-tiktok-ads", name: "Gest\u00e3o de TikTok Ads", service_group: "performance",
-    description: "Campanhas de awareness e convers\u00e3o no TikTok com cria\u00e7\u00e3o de criativos nativos.",
+    id: "perf-tiktok-ads", name: "Gestão de TikTok Ads", service_group: "performance",
+    description: "Campanhas de awareness e conversão no TikTok com criação de criativos nativos.",
     base_price: 2000, impl_price: 1000, hours_estimate: 15, is_ads: true,
     complexity_basico: 1, complexity_intermediario: 1.4, complexity_avancado: 2.0,
   },
   {
-    id: "perf-seo", name: "SEO & Conte\u00fado Org\u00e2nico", service_group: "performance",
-    description: "Otimiza\u00e7\u00e3o t\u00e9cnica, on-page e off-page para mecanismos de busca.",
+    id: "perf-seo", name: "SEO & Conteúdo Orgânico", service_group: "performance",
+    description: "Otimização técnica, on-page e off-page para mecanismos de busca.",
     base_price: 3500, impl_price: 2500, hours_estimate: 30, is_ads: false,
     complexity_basico: 1, complexity_intermediario: 1.7, complexity_avancado: 2.5,
   },
   {
     id: "perf-analytics", name: "Analytics & Dashboards", service_group: "performance",
-    description: "Configura\u00e7\u00e3o de GA4, GTM, dashboards de BI e relat\u00f3rios de performance.",
+    description: "Configuração de GA4, GTM, dashboards de BI e relatórios de performance.",
     base_price: 1800, impl_price: 3000, hours_estimate: 12, is_ads: false,
     complexity_basico: 1, complexity_intermediario: 1.5, complexity_avancado: 2.0,
   },
   {
-    id: "sales-crm", name: "Implementa\u00e7\u00e3o de CRM", service_group: "sales_ops",
-    description: "Setup completo de CRM (HubSpot, Pipedrive, RD Station) com customiza\u00e7\u00e3o de pipelines.",
+    id: "sales-crm", name: "Implementação de CRM", service_group: "sales_ops",
+    description: "Setup completo de CRM (HubSpot, Pipedrive, RD Station) com customização de pipelines.",
     base_price: 2800, impl_price: 5000, hours_estimate: 24, is_ads: false,
     complexity_basico: 1, complexity_intermediario: 1.8, complexity_avancado: 2.8,
   },
   {
-    id: "sales-automation", name: "Automa\u00e7\u00e3o de Marketing", service_group: "sales_ops",
-    description: "Fluxos de nutri\u00e7\u00e3o, lead scoring e automa\u00e7\u00f5es de email marketing.",
+    id: "sales-automation", name: "Automação de Marketing", service_group: "sales_ops",
+    description: "Fluxos de nutrição, lead scoring e automações de email marketing.",
     base_price: 2200, impl_price: 3500, hours_estimate: 18, is_ads: false,
     complexity_basico: 1, complexity_intermediario: 1.6, complexity_avancado: 2.4,
   },
   {
-    id: "sales-lead-scoring", name: "Lead Scoring & Qualifica\u00e7\u00e3o", service_group: "sales_ops",
-    description: "Defini\u00e7\u00e3o de crit\u00e9rios de qualifica\u00e7\u00e3o, MQL/SQL e integra\u00e7\u00e3o com vendas.",
+    id: "sales-lead-scoring", name: "Lead Scoring & Qualificação", service_group: "sales_ops",
+    description: "Definição de critérios de qualificação, MQL/SQL e integração com vendas.",
     base_price: 1500, impl_price: 2000, hours_estimate: 10, is_ads: false,
     complexity_basico: 1, complexity_intermediario: 1.5, complexity_avancado: 2.0,
   },
   {
     id: "sales-pipeline", name: "Pipeline de Vendas", service_group: "sales_ops",
-    description: "Estrutura\u00e7\u00e3o do pipeline comercial com etapas, gatilhos e m\u00e9tricas de convers\u00e3o.",
+    description: "Estruturação do pipeline comercial com etapas, gatilhos e métricas de conversão.",
     base_price: 1800, impl_price: 2500, hours_estimate: 14, is_ads: false,
     complexity_basico: 1, complexity_intermediario: 1.5, complexity_avancado: 2.2,
   },
   {
-    id: "sales-integration", name: "Integra\u00e7\u00e3o de Ferramentas", service_group: "sales_ops",
-    description: "Integra\u00e7\u00e3o entre CRM, ferramentas de marketing, ERP e plataformas de vendas.",
+    id: "sales-integration", name: "Integração de Ferramentas", service_group: "sales_ops",
+    description: "Integração entre CRM, ferramentas de marketing, ERP e plataformas de vendas.",
     base_price: 1200, impl_price: 3000, hours_estimate: 10, is_ads: false,
     complexity_basico: 1, complexity_intermediario: 1.8, complexity_avancado: 2.5,
   },
   {
     id: "sales-onboarding", name: "Onboarding de Clientes", service_group: "sales_ops",
-    description: "Treinamento da equipe comercial e implementa\u00e7\u00e3o de processos de vendas.",
+    description: "Treinamento da equipe comercial e implementação de processos de vendas.",
     base_price: 1500, impl_price: 2000, hours_estimate: 12, is_ads: false,
     complexity_basico: 1, complexity_intermediario: 1.4, complexity_avancado: 1.8,
   },
@@ -799,31 +799,31 @@ const SERVICE_CATALOG = [
   },
   {
     id: "brand-social", name: "Social Media Management", service_group: "brand_co",
-    description: "Gest\u00e3o de redes sociais com planejamento editorial, cria\u00e7\u00e3o de conte\u00fado e community management.",
+    description: "Gestão de redes sociais com planejamento editorial, criação de conteúdo e community management.",
     base_price: 3500, impl_price: 1500, hours_estimate: 30, is_ads: false,
     complexity_basico: 1, complexity_intermediario: 1.5, complexity_avancado: 2.2,
   },
   {
-    id: "brand-content", name: "Produ\u00e7\u00e3o de Conte\u00fado", service_group: "brand_co",
-    description: "Blog posts, e-books, whitepapers, infogr\u00e1ficos e materiais ricos.",
+    id: "brand-content", name: "Produção de Conteúdo", service_group: "brand_co",
+    description: "Blog posts, e-books, whitepapers, infográficos e materiais ricos.",
     base_price: 2800, impl_price: 1000, hours_estimate: 24, is_ads: false,
     complexity_basico: 1, complexity_intermediario: 1.6, complexity_avancado: 2.3,
   },
   {
-    id: "brand-design", name: "Design Gr\u00e1fico", service_group: "brand_co",
-    description: "Cria\u00e7\u00e3o de pe\u00e7as gr\u00e1ficas, apresenta\u00e7\u00f5es, materiais impressos e digitais.",
+    id: "brand-design", name: "Design Gráfico", service_group: "brand_co",
+    description: "Criação de peças gráficas, apresentações, materiais impressos e digitais.",
     base_price: 2000, impl_price: 800, hours_estimate: 16, is_ads: false,
     complexity_basico: 1, complexity_intermediario: 1.4, complexity_avancado: 2.0,
   },
   {
-    id: "brand-video", name: "V\u00eddeo & Motion Design", service_group: "brand_co",
-    description: "Produ\u00e7\u00e3o de v\u00eddeos institucionais, motion graphics, reels e conte\u00fado audiovisual.",
+    id: "brand-video", name: "Vídeo & Motion Design", service_group: "brand_co",
+    description: "Produção de vídeos institucionais, motion graphics, reels e conteúdo audiovisual.",
     base_price: 3000, impl_price: 2000, hours_estimate: 20, is_ads: false,
     complexity_basico: 1, complexity_intermediario: 1.6, complexity_avancado: 2.5,
   },
   {
     id: "brand-web", name: "Website & Landing Pages", service_group: "brand_co",
-    description: "Design e desenvolvimento de websites, landing pages e p\u00e1ginas de convers\u00e3o.",
+    description: "Design e desenvolvimento de websites, landing pages e páginas de conversão.",
     base_price: 0, impl_price: 8000, hours_estimate: 40, is_ads: false,
     complexity_basico: 1, complexity_intermediario: 1.5, complexity_avancado: 2.5,
   },

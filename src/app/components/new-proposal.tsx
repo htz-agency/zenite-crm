@@ -41,7 +41,11 @@ import {
   type Seniority,
   type Allocation,
 } from "./pricing-data";
-import { createProposal, updateProposal, getProposal, generateProposalId, selectedToDb, dbToSelected } from "./api";
+import { createProposal, updateProposal, getProposal, generateProposalId, selectedToDb, dbToSelected, saveProposalCrmLinks, getProposalCrmLinks } from "./api";
+import { AccountSearchField } from "./crm/account-search-field";
+import { ContactSearchField } from "./crm/contact-search-field";
+import { OpportunitySearchField } from "./crm/opportunity-search-field";
+import { PriceEditableField } from "./price-editable-field";
 
 const groupIcons: Record<string, React.ReactNode> = {
   performance: <Speedometer size={16} weight="duotone" />,
@@ -55,6 +59,11 @@ export function NewProposal() {
   const isEditing = !!editId;
 
   const [clientName, setClientName] = useState("");
+  const [clientAccountId, setClientAccountId] = useState<string | null>(null);
+  const [contactName, setContactName] = useState("");
+  const [contactId, setContactId] = useState<string | null>(null);
+  const [opportunityName, setOpportunityName] = useState("");
+  const [opportunityId, setOpportunityId] = useState<string | null>(null);
   const [selectedServices, setSelectedServices] = useState<SelectedService[]>([]);
   const [globalDiscount, setGlobalDiscount] = useState(0);
   const [notes, setNotes] = useState("");
@@ -80,6 +89,15 @@ export function NewProposal() {
         const dbServices = proposal.price_proposal_services ?? [];
         const selected: SelectedService[] = dbServices.map((dbSvc: any) => dbToSelected(dbSvc));
         setSelectedServices(selected);
+
+        // Load CRM links
+        const crmLinks = await getProposalCrmLinks(editId);
+        if (crmLinks.accountId) setClientAccountId(crmLinks.accountId);
+        if (crmLinks.accountName) setClientName(crmLinks.accountName);
+        if (crmLinks.contactId) setContactId(crmLinks.contactId);
+        if (crmLinks.contactName) setContactName(crmLinks.contactName);
+        if (crmLinks.opportunityId) setOpportunityId(crmLinks.opportunityId);
+        if (crmLinks.opportunityName) setOpportunityName(crmLinks.opportunityName);
       } catch (err) {
         console.error("Error loading proposal for edit:", err);
         setEditLoadError(err instanceof Error ? err.message : "Erro ao carregar proposta");
@@ -212,14 +230,24 @@ export function NewProposal() {
             services: dbServices,
           });
 
+      // Save CRM links
+      await saveProposalCrmLinks(proposalId, {
+        accountId: clientAccountId,
+        accountName: clientName.trim(),
+        contactId: contactId,
+        contactName: contactName,
+        opportunityId: opportunityId,
+        opportunityName: opportunityName,
+      });
+
       if (status === "rascunho") {
         toast.success(`Rascunho "${saved.id ?? proposalId}" salvo com sucesso!`);
         if (isEditing) {
-          navigate(`/propostas/${proposalId}`);
+          navigate(`/price/propostas/${proposalId}`);
         }
       } else {
         toast.success(`Proposta "${saved.id ?? proposalId}" ${isEditing ? "atualizada" : "criada"} com sucesso!`);
-        navigate(`/propostas/${saved.id ?? proposalId}`);
+        navigate(`/price/propostas/${saved.id ?? proposalId}`);
       }
     } catch (err) {
       console.error("Error saving proposal:", err);
@@ -236,7 +264,7 @@ export function NewProposal() {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-[20px] bg-white rounded-[16px] px-[20px] pt-[20px] pb-[16px]">
         <div className="flex items-center gap-[10px]">
           <button
-            onClick={() => navigate("/")}
+            onClick={() => navigate("/price")}
             className="flex items-center justify-center shrink-0 size-[44px] bg-[#dcf0ff] rounded-[8px] hover:bg-[#c8e4f8] transition-colors"
           >
             <FileText size={22} weight="bold" className="text-[#07abde]" />
@@ -251,6 +279,7 @@ export function NewProposal() {
           </div>
         </div>
         <div className="flex items-center gap-[10px] bg-[#f6f7f9] h-[44px] rounded-[100px] px-[5px] py-[0px]">
+          {!isEditing && (
           <button
             className="flex items-center gap-[4px] justify-center h-[32px] px-[12px] rounded-[500px] text-[#28415c] hover:bg-[#DCF0FF] hover:text-[#07ABDE] active:bg-[#07ABDE] active:text-[#f6f7f9] transition-colors disabled:opacity-50"
             onClick={() => handleSave("rascunho")}
@@ -259,13 +288,14 @@ export function NewProposal() {
             <FloppyDisk size={15} weight="bold" />
             <span className="font-bold text-[10px] tracking-[0.5px] uppercase leading-[20px]">Salvar Rascunho</span>
           </button>
+          )}
           <button
             className="flex items-center gap-[4px] justify-center h-[32px] px-[12px] rounded-[500px] text-[#28415c] hover:bg-[#DCF0FF] hover:text-[#07ABDE] active:bg-[#07ABDE] active:text-[#f6f7f9] transition-colors disabled:opacity-50"
             onClick={() => handleSave("criada")}
             disabled={saving || loadingEdit}
             title={isEditing ? "Salvar Alterações" : "Criar Proposta"}
           >
-            {saving ? <SpinnerGap size={15} className="animate-spin" /> : <Clipboard size={15} weight="bold" />}
+            {saving ? <SpinnerGap size={15} className="animate-spin" /> : isEditing ? <FloppyDisk size={15} weight="bold" /> : <Clipboard size={15} weight="bold" />}
             <span className="font-bold text-[10px] tracking-[0.5px] uppercase leading-[20px]">{isEditing ? "Salvar Alterações" : "Criar Proposta"}</span>
           </button>
         </div>
@@ -278,7 +308,7 @@ export function NewProposal() {
       ) : editLoadError ? (
         <div className="bg-white rounded-xl border border-[#FFEDEB] p-8 text-center">
           <p className="text-[#B13B00]" style={{ fontSize: 15, fontWeight: 600 }}>{editLoadError}</p>
-          <button onClick={() => navigate("/propostas")} className="mt-4 px-5 py-2.5 bg-[#0483AB] text-white rounded-lg hover:bg-[#025E7B] transition-colors" style={{ fontSize: 14, fontWeight: 600 }}>
+          <button onClick={() => navigate("/price/propostas")} className="mt-4 px-5 py-2.5 bg-[#0483AB] text-white rounded-lg hover:bg-[#025E7B] transition-colors" style={{ fontSize: 14, fontWeight: 600 }}>
             Voltar para Propostas
           </button>
         </div>
@@ -292,28 +322,54 @@ export function NewProposal() {
               Informações do Cliente
             </h3>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
-              <div className="relative rounded-[8px] p-[6px] group focus-within:ring-1 focus-within:ring-[#07abde] transition-all">
-                <label className="block font-bold uppercase tracking-[0.5px] text-[#98989d] group-focus-within:text-[#07abde] transition-colors" style={{ fontSize: 10, lineHeight: '20px' }}>Empresa</label>
-                <input
-                  type="text"
-                  value={clientName}
-                  onChange={(e) => setClientName(e.target.value)}
-                  placeholder="Ex: Tech Solutions Ltda"
-                  className="w-full bg-transparent text-[#4e6987] placeholder-[#C8CFDB] focus:outline-none font-medium"
-                  style={{ fontSize: 15, lineHeight: '22px', letterSpacing: '-0.5px' }}
-                />
-              </div>
-              <div className="relative rounded-[8px] p-[6px] group focus-within:ring-1 focus-within:ring-[#07abde] transition-all">
-                <label className="block font-bold uppercase tracking-[0.5px] text-[#98989d] group-focus-within:text-[#07abde] transition-colors" style={{ fontSize: 10, lineHeight: '20px' }}>Observações</label>
-                <input
-                  type="text"
-                  value={notes}
-                  onChange={(e) => setNotes(e.target.value)}
-                  placeholder="Observações da proposta..."
-                  className="w-full bg-transparent text-[#4e6987] placeholder-[#C8CFDB] focus:outline-none font-medium"
-                  style={{ fontSize: 15, lineHeight: '22px', letterSpacing: '-0.5px' }}
-                />
-              </div>
+              <AccountSearchField
+                label="EMPRESA"
+                value={clientName}
+                accountId={clientAccountId}
+                onSelect={(id, name) => {
+                  setClientAccountId(id);
+                  setClientName(name);
+                }}
+                onUnlink={() => {
+                  setClientAccountId(null);
+                  setClientName("");
+                }}
+                onNavigate={(id) => navigate(`/crm/contas/${id}`)}
+              />
+              <ContactSearchField
+                label="CONTATO"
+                value={contactName}
+                contactId={contactId}
+                onSelect={(id, name) => {
+                  setContactId(id);
+                  setContactName(name);
+                }}
+                onUnlink={() => {
+                  setContactId(null);
+                  setContactName("");
+                }}
+                onNavigate={(id) => navigate(`/crm/contatos/${id}`)}
+              />
+              <OpportunitySearchField
+                label="OPORTUNIDADE"
+                value={opportunityName}
+                opportunityId={opportunityId}
+                onSelect={(id, name) => {
+                  setOpportunityId(id);
+                  setOpportunityName(name);
+                }}
+                onUnlink={() => {
+                  setOpportunityId(null);
+                  setOpportunityName("");
+                }}
+                onNavigate={(id) => navigate(`/crm/oportunidades/${id}`)}
+              />
+              <PriceEditableField
+                label="OBSERVAÇÕES"
+                value={notes}
+                onChange={(v) => setNotes(v)}
+                placeholder="Observações da proposta..."
+              />
             </div>
           </div>
 
@@ -709,7 +765,7 @@ export function NewProposal() {
 
                 {/* Combo Discount Badge */}
                 {combo.totalPercent > 0 && (
-                  <div className="mb-4 p-3 rounded-xl bg-gradient-to-r from-[#D9F8EF] to-[#DCF0FF] border border-[#3CCEA7]/30">
+                  <div className="mb-4 p-3 bg-gradient-to-r from-[#D9F8EF] to-[#DCF0FF] rounded-[16px]">
                     <div className="flex items-center justify-between mb-2">
                       <div className="flex items-center gap-2">
                         <div className="w-6 h-6 rounded-lg bg-[#3CCEA7] flex items-center justify-center">

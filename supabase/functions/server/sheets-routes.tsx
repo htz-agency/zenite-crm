@@ -198,6 +198,8 @@ async function getGoogleAccessToken(): Promise<string> {
   }
 
   // ── Strategy B: Self-signed JWT used directly as Bearer token ──
+  // For Google APIs, we can use a self-signed JWT with the target API as the audience.
+  // No token exchange needed.
   try {
     const header = b64url(JSON.stringify({ alg: "RS256", typ: "JWT" }));
     const claimSet = {
@@ -218,11 +220,15 @@ async function getGoogleAccessToken(): Promise<string> {
     const signature = uint8ToB64url(new Uint8Array(signatureBuffer));
     const selfSignedJwt = `${signInput}.${signature}`;
 
+    // Verify the self-signed JWT works by making a quick API call
     const testRes = await fetch(
       "https://sheets.googleapis.com/v4/spreadsheets/1?fields=spreadsheetId",
       { headers: { Authorization: `Bearer ${selfSignedJwt}` } },
     );
 
+    // 404 = auth worked but spreadsheet doesn't exist (good — token is valid)
+    // 200 = auth worked
+    // 401/403 = auth failed
     if (testRes.status === 200 || testRes.status === 404) {
       console.log("Google auth succeeded via self-signed JWT (Strategy B)");
       _cachedToken = {
@@ -636,6 +642,7 @@ sheets.post(`${PREFIX}/import`, async (c) => {
       columnMapping,
       skipFirstRow = true,
     } = await c.req.json();
+    // columnMapping: Record<string, string> = { "0": "name", "1": "email", ... }
 
     const config = CRM_OBJECT_CONFIG[objectType];
     if (!config) {
@@ -764,6 +771,7 @@ sheets.post(`${PREFIX}/import`, async (c) => {
 sheets.post(`${PREFIX}/export`, async (c) => {
   try {
     const { url, sheetName, objectType, fields } = await c.req.json();
+    // fields: string[] — CRM field keys to export
 
     const config = CRM_OBJECT_CONFIG[objectType];
     if (!config) {

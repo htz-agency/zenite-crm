@@ -22,6 +22,9 @@ import {
   CaretRight,
   Tag,
   Plus,
+  Package,
+  ArrowSquareDownRight,
+  LinkSimple,
 } from "@phosphor-icons/react";
 import { toast } from "sonner";
 import { formatCurrency, services as allServicesCatalog, calculateServicePrice } from "./pricing-data";
@@ -32,8 +35,22 @@ import {
   updateProposalStatus,
   updateProposalTag,
   dbToSelected,
+  createShareLink,
+  getShareLink,
+  revokeShareLink,
+  buildPublicUrl,
   type DbProposal,
 } from "./api";
+import { generateProposalPDF } from "./generate-proposal-pdf";
+import { useMultitask } from "./multitask-context";
+
+const statusColors: Record<string, string> = {
+  rascunho: "#4E6987",
+  criada: "#6868B1",
+  enviada: "#0483AB",
+  aprovada: "#135543",
+  recusada: "#B13B00",
+};
 
 /* ─── Helpers ─── */
 
@@ -149,6 +166,7 @@ function DetailField({ label, value, link }: { label: string; value: string; lin
 export function ProposalDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const { minimize } = useMultitask();
   const [proposal, setProposal] = useState<DbProposal | null>(null);
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
@@ -213,7 +231,7 @@ export function ProposalDetail() {
     return (
       <div>
         <div className="flex items-center gap-3 mb-6">
-          <button onClick={() => navigate("/propostas")} className="p-2 rounded-lg hover:bg-[#F6F7F9] transition-colors">
+          <button onClick={() => navigate("/price/propostas")} className="p-2 rounded-lg hover:bg-[#F6F7F9] transition-colors">
             <X size={18} className="text-[#4E6987]" />
           </button>
           <h1 className="text-title2 text-[#122232]">Proposta não encontrada</h1>
@@ -223,7 +241,7 @@ export function ProposalDetail() {
           <p className="text-body text-[#4E6987]">
             A proposta <span className="font-bold">{id}</span> não foi encontrada.
           </p>
-          <button onClick={() => navigate("/propostas")} className="mt-4 px-5 py-2.5 bg-[#0483AB] text-white rounded-lg hover:bg-[#025E7B] transition-colors text-body font-semibold">
+          <button onClick={() => navigate("/price/propostas")} className="mt-4 px-5 py-2.5 bg-[#0483AB] text-white rounded-lg hover:bg-[#025E7B] transition-colors text-body font-semibold">
             Voltar para Propostas
           </button>
         </div>
@@ -258,7 +276,7 @@ export function ProposalDetail() {
     try {
       const dup = await duplicateProposalApi(id);
       toast.success(`Proposta duplicada: ${dup.id}`);
-      navigate(`/propostas/${dup.id}`);
+      navigate(`/price/propostas/${dup.id}`);
     } catch (err) {
       console.error("Error duplicating:", err);
       toast.error("Erro ao duplicar proposta.");
@@ -270,7 +288,7 @@ export function ProposalDetail() {
     try {
       await deleteProposalApi(id);
       toast.success("Proposta excluída.");
-      navigate("/propostas");
+      navigate("/price/propostas");
     } catch (err) {
       console.error("Error deleting:", err);
       toast.error("Erro ao excluir proposta.");
@@ -434,7 +452,7 @@ export function ProposalDetail() {
                 <Tag size={16} weight="bold" className="text-[#28415C]" />
               </button>
               <button
-                onClick={() => navigate(`/editar-proposta/${proposal.id}`)}
+                onClick={() => navigate(`/price/editar-proposta/${proposal.id}`)}
                 className="flex items-center justify-center size-[32px] rounded-full hover:bg-[#DCF0FF] active:bg-[#07ABDE] [&:active>svg]:text-[#f6f7f9] transition-colors"
                 title="Editar"
               >
@@ -448,13 +466,69 @@ export function ProposalDetail() {
                 <Copy size={16} weight="bold" className="text-[#28415C]" />
               </button>
               <button
-                onClick={() => toast.info("Funcionalidade de impressão em breve")}
+                onClick={async () => {
+                  try {
+                    toast.loading("Gerando PDF...", { id: "pdf" });
+                    await generateProposalPDF(proposal);
+                    toast.success("PDF gerado com sucesso!", { id: "pdf" });
+                  } catch (err) {
+                    console.error("Erro ao gerar PDF:", err);
+                    toast.error("Erro ao gerar PDF.", { id: "pdf" });
+                  }
+                }}
                 className="flex items-center justify-center size-[32px] rounded-full hover:bg-[#DCF0FF] active:bg-[#07ABDE] [&:active>svg]:text-[#f6f7f9] transition-colors"
-                title="Imprimir"
+                title="Gerar PDF"
               >
                 <FilePdf size={16} weight="bold" className="text-[#28415C]" />
               </button>
-              
+              <button
+                onClick={async () => {
+                  if (!id) return;
+                  try {
+                    toast.loading("Gerando link...", { id: "share" });
+                    const share = await createShareLink(id);
+                    const publicUrl = buildPublicUrl(share.token);
+                    try {
+                      await navigator.clipboard.writeText(publicUrl);
+                      toast.success("Link público copiado!", { id: "share", description: publicUrl, duration: 5000 });
+                    } catch {
+                      // Fallback for restricted clipboard environments
+                      const input = document.createElement("textarea");
+                      input.value = publicUrl;
+                      input.style.position = "fixed";
+                      input.style.opacity = "0";
+                      document.body.appendChild(input);
+                      input.select();
+                      document.execCommand("copy");
+                      document.body.removeChild(input);
+                      toast.success("Link público copiado!", { id: "share", description: publicUrl, duration: 5000 });
+                    }
+                  } catch (err) {
+                    console.error("Error creating share link:", err);
+                    toast.error("Erro ao gerar link público.", { id: "share" });
+                  }
+                }}
+                className="flex items-center justify-center size-[32px] rounded-full hover:bg-[#DCF0FF] active:bg-[#07ABDE] [&:active>svg]:text-[#f6f7f9] transition-colors"
+                title="Link Público"
+              >
+                <LinkSimple size={16} weight="bold" className="text-[#28415C]" />
+              </button>
+              <button
+                onClick={() => {
+                  minimize({
+                    id: proposal.id,
+                    title: proposal.client_name,
+                    subtitle: proposal.id,
+                    path: `/price/propostas/${proposal.id}`,
+                    statusColor: statusColors[proposal.status],
+                  });
+                  navigate("/price/propostas");
+                }}
+                className="flex items-center justify-center size-[32px] rounded-full hover:bg-[#DCF0FF] active:bg-[#07ABDE] [&:active>svg]:text-[#f6f7f9] transition-colors"
+                title="Minimizar"
+              >
+                <ArrowSquareDownRight size={16} weight="bold" className="text-[#28415C]" />
+              </button>
               <button
                 onClick={handleDelete}
                 className="flex items-center justify-center size-[32px] rounded-full hover:bg-[#DCF0FF] active:bg-[#07ABDE] [&:active>svg]:text-[#f6f7f9] transition-colors"
@@ -463,7 +537,7 @@ export function ProposalDetail() {
                 <Trash size={16} weight="bold" className="text-[#28415C]" />
               </button>
               <button
-                onClick={() => navigate("/propostas")}
+                onClick={() => navigate("/price/propostas")}
                 className="flex items-center justify-center size-[32px] rounded-full hover:bg-[#DCF0FF] active:bg-[#07ABDE] [&:active>svg]:text-[#f6f7f9] transition-colors"
                 title="Fechar"
               >
@@ -566,7 +640,7 @@ export function ProposalDetail() {
           <div>
             <SectionHeader
               title={`Serviços Inclusos (${serviceDetails.length})`}
-              icon={<FileText size={20} weight="duotone" className="text-[#0483AB]" />}
+              icon={<Package size={20} weight="duotone" className="text-[#0483AB]" />}
               expanded={servicesExpanded}
               onToggle={() => setServicesExpanded(!servicesExpanded)}
             />
@@ -644,7 +718,7 @@ export function ProposalDetail() {
 
           {/* Combo Discount */}
           {(proposal.combo_discount_percent ?? 0) > 0 && (
-            <div className="flex items-center justify-between p-[16px] rounded-[10px] bg-gradient-to-r from-[#D9F8EF] to-[#DCF0FF] border border-[#3CCEA7]/30">
+            <div className="flex items-center justify-between p-[16px] rounded-[10px] bg-gradient-to-r from-[#D9F8EF] to-[#DCF0FF]">
               <div className="flex items-center gap-[12px]">
                 <div className="flex items-center justify-center size-[32px] rounded-[8px] bg-[#3CCEA7]">
                   <Percent size={16} weight="bold" className="text-white" />

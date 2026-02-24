@@ -40,6 +40,7 @@ import {
 import { DndProvider, useDrag, useDrop, useDragLayer } from "react-dnd";
 import { TouchBackend } from "react-dnd-touch-backend";
 import { useSearch } from "./search-context";
+import { PillButton } from "./pill-button";
 
 const TOUCH_BACKEND_OPTIONS = { enableMouseEvents: true };
 
@@ -171,7 +172,7 @@ function CircleCheckbox({
         className={`absolute inset-0 rounded-full border-[1.5px] border-solid transition-colors ${
           checked
             ? "border-[#3ccea7] bg-[#3ccea7]"
-            : "border-[#28415c] bg-transparent backdrop-blur-[20px]"
+            : "border-[#c8cfdb] bg-transparent backdrop-blur-[20px]"
         }`}
       />
       {checked && (
@@ -219,11 +220,11 @@ function KanbanCardContent({
           {activeMenu === proposal.id && (
             <div className="absolute right-0 top-6 z-30 backdrop-blur-[50px] bg-white flex flex-col gap-[2px] items-start p-[8px] rounded-[20px]">
               <div aria-hidden="true" className="absolute border-[1.4px] border-[rgba(200,207,219,0.6)] border-solid inset-0 pointer-events-none rounded-[20px]" style={{ boxShadow: "0px 2px 4px 0px rgba(18,34,50,0.3)" }} />
-              <button onClick={(e) => { e.stopPropagation(); setActiveMenu(null); navigate(`/propostas/${proposal.id}`); }} className="relative flex gap-[4px] items-center pr-[16px] py-[6px] rounded-[100px] text-[#4e6987] hover:bg-[#f6f7f9] hover:text-[#28415c] transition-colors w-full cursor-pointer">
+              <button onClick={(e) => { e.stopPropagation(); setActiveMenu(null); navigate(`/price/propostas/${proposal.id}`); }} className="relative flex gap-[4px] items-center pr-[16px] py-[6px] rounded-[100px] text-[#4e6987] hover:bg-[#f6f7f9] hover:text-[#28415c] transition-colors w-full cursor-pointer">
                 <div className="flex items-center justify-center shrink-0 w-[28px]"><Eye size={12} /></div>
                 <span className="text-[11px] tracking-[-0.3px] leading-[16px] whitespace-nowrap" style={{ fontWeight: 500, ...fontFeature }}>Visualizar</span>
               </button>
-              <button onClick={(e) => { e.stopPropagation(); setActiveMenu(null); navigate(`/editar-proposta/${proposal.id}`); }} className="relative flex gap-[4px] items-center pr-[16px] py-[6px] rounded-[100px] text-[#4e6987] hover:bg-[#f6f7f9] hover:text-[#28415c] transition-colors w-full cursor-pointer">
+              <button onClick={(e) => { e.stopPropagation(); setActiveMenu(null); navigate(`/price/editar-proposta/${proposal.id}`); }} className="relative flex gap-[4px] items-center pr-[16px] py-[6px] rounded-[100px] text-[#4e6987] hover:bg-[#f6f7f9] hover:text-[#28415c] transition-colors w-full cursor-pointer">
                 <div className="flex items-center justify-center shrink-0 w-[28px]"><PencilSimple size={12} /></div>
                 <span className="text-[11px] tracking-[-0.3px] leading-[16px] whitespace-nowrap" style={{ fontWeight: 500, ...fontFeature }}>Editar</span>
               </button>
@@ -295,7 +296,7 @@ function DraggableKanbanCard({
   }
 
   return (
-    <div ref={(node) => { dragRef(node); }} onClick={() => navigate(`/propostas/${proposal.id}`)} className="bg-white p-3 cursor-grab hover:shadow-[0px_2px_4px_0px_rgba(18,34,50,0.3)] transition-all active:bg-[#F6F7F9] group/card rounded-[16px] active:cursor-grabbing">
+    <div ref={(node) => { dragRef(node); }} onClick={() => navigate(`/price/propostas/${proposal.id}`)} className="bg-white p-3 cursor-grab hover:shadow-[0px_2px_4px_0px_rgba(18,34,50,0.3)] transition-all active:bg-[#F6F7F9] group/card rounded-[16px] active:cursor-grabbing">
       <KanbanCardContent proposal={proposal} navigate={navigate} activeMenu={activeMenu} setActiveMenu={setActiveMenu} menuRef={menuRef} handleDuplicate={handleDuplicate} handleDelete={handleDelete} />
     </div>
   );
@@ -362,7 +363,7 @@ function CustomDragLayer() {
 
 export function Proposals() {
   const navigate = useNavigate();
-  const { query: search } = useSearch();
+  const { query: search, filters } = useSearch();
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [activeMenu, setActiveMenu] = useState<string | null>(null);
   const [proposals, setProposals] = useState<DbProposal[]>([]);
@@ -453,7 +454,43 @@ export function Proposals() {
       p.client_name.toLowerCase().includes(search.toLowerCase()) ||
       p.id.toLowerCase().includes(search.toLowerCase());
     const matchesStatus = statusFilter === "all" || p.status === statusFilter;
-    return matchesSearch && matchesStatus;
+
+    // Advanced filters from context
+    const matchesAdvStatus = filters.statuses.length === 0 || filters.statuses.includes(p.status);
+
+    const monthly = p.total_monthly ?? 0;
+    const matchesMonthlyMin = !filters.monthlyMin || monthly >= Number(filters.monthlyMin);
+    const matchesMonthlyMax = !filters.monthlyMax || monthly <= Number(filters.monthlyMax);
+
+    const total = p.grand_total ?? 0;
+    const matchesTotalMin = !filters.totalMin || total >= Number(filters.totalMin);
+    const matchesTotalMax = !filters.totalMax || total <= Number(filters.totalMax);
+
+    const impl = p.total_impl ?? 0;
+    const matchesImplMin = !filters.implMin || impl >= Number(filters.implMin);
+    const matchesImplMax = !filters.implMax || impl <= Number(filters.implMax);
+
+    const hours = p.total_hours ?? 0;
+    const matchesHoursMin = !filters.hoursMin || hours >= Number(filters.hoursMin);
+    const matchesHoursMax = !filters.hoursMax || hours <= Number(filters.hoursMax);
+
+    const svcIds = (p.price_proposal_services ?? []).map((s) => s.service_id);
+    const matchesServices = filters.serviceIds.length === 0 || filters.serviceIds.some((id) => svcIds.includes(id));
+
+    return (
+      matchesSearch &&
+      matchesStatus &&
+      matchesAdvStatus &&
+      matchesMonthlyMin &&
+      matchesMonthlyMax &&
+      matchesTotalMin &&
+      matchesTotalMax &&
+      matchesImplMin &&
+      matchesImplMax &&
+      matchesHoursMin &&
+      matchesHoursMax &&
+      matchesServices
+    );
   });
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / ROWS_PER_PAGE));
@@ -465,7 +502,7 @@ export function Proposals() {
   // Reset page when filters change
   useEffect(() => {
     setCurrentPage(1);
-  }, [search, statusFilter]);
+  }, [search, statusFilter, filters]);
 
   const toggleSelect = (id: string) => {
     setSelectedIds((prev) => {
@@ -511,14 +548,14 @@ export function Proposals() {
     if (selectedIds.size === 0) { toast("Selecione ao menos uma proposta."); return; }
     if (selectedIds.size > 1) { toast("Selecione apenas uma proposta para visualizar."); return; }
     const id = [...selectedIds][0];
-    navigate(`/propostas/${id}`);
+    navigate(`/price/propostas/${id}`);
   };
 
   const handleActionEdit = () => {
     if (selectedIds.size === 0) { toast("Selecione ao menos uma proposta."); return; }
     if (selectedIds.size > 1) { toast("Selecione apenas uma proposta para editar."); return; }
     const id = [...selectedIds][0];
-    navigate(`/editar-proposta/${id}`);
+    navigate(`/price/editar-proposta/${id}`);
   };
 
   const handleActionDuplicate = async () => {
@@ -585,7 +622,7 @@ export function Proposals() {
             className={`flex items-center gap-[10px] p-[12px] rounded-[100px] hover:bg-[#f6f7f9] transition-colors cursor-pointer group/title ${titleMenuOpen ? "bg-[#f6f7f9]" : ""}`}
           >
             <div className="flex items-center justify-center shrink-0 w-[44px] h-[44px] rounded-[10px] bg-[#DCF0FF] group-hover/title:bg-[#dde3ec] transition-colors">
-              <FileText size={22} weight="fill" className="text-[#0483AB] group-hover/title:text-[#28415c] transition-colors" />
+              <FileText size={22} weight="duotone" className="text-[#0483AB] group-hover/title:text-[#28415c] transition-colors" />
             </div>
             <div className="flex flex-col items-start justify-center">
               <span
@@ -598,9 +635,7 @@ export function Proposals() {
                 <span
                   className="text-[#28415c] text-[19px] font-bold tracking-[-0.5px] leading-[24px]"
                   style={fontFeature}
-                >
-                  Propostas
-                </span>
+                >Lista de Propostas</span>
                 <div className={`flex items-center justify-center size-[24px] rounded-full transition-transform ${titleMenuOpen ? "rotate-180" : ""}`}>
                   <CaretDown size={14} weight="bold" className="text-[#28415c]" />
                 </div>
@@ -824,7 +859,7 @@ export function Proposals() {
 
           {/* New Proposal + button */}
           <button
-            onClick={() => navigate("/nova-proposta")}
+            onClick={() => navigate("/price/nova-proposta")}
             className="relative flex items-center justify-center w-[34px] h-[34px] rounded-full bg-[#dcf0ff] text-[#28415c] hover:bg-[#cce7fb] transition-colors cursor-pointer"
           >
             <Plus size={16} weight="bold" />
@@ -851,18 +886,12 @@ export function Proposals() {
           <p className="text-[#4E6987] mb-4" style={{ fontSize: 15 }}>
             Nenhuma proposta encontrada.
           </p>
-          <button
-            onClick={() => navigate("/nova-proposta")}
-            className="flex items-center gap-[3px] h-[40px] pl-[16px] pr-[20px] rounded-full bg-[#DCF0FF] text-[#28415C] hover:bg-[#cce7fb] transition-colors cursor-pointer"
+          <PillButton
+            onClick={() => navigate("/price/nova-proposta")}
+            icon={<Plus size={16} weight="bold" />}
           >
-            <Plus size={16} weight="bold" />
-            <span
-              className="font-normal"
-              style={{ fontSize: 15, letterSpacing: -0.5, lineHeight: "22px" }}
-            >
-              Nova Proposta
-            </span>
-          </button>
+            Nova Proposta
+          </PillButton>
         </div>
       ) : viewMode === "kanban" ? (
         /* ═══════ KANBAN VIEW (Drag & Drop) ═══════ */
@@ -991,7 +1020,7 @@ export function Proposals() {
                   <div key={proposal.id}>
                     <HorizontalDivider />
                     <div
-                      onClick={() => navigate(`/propostas/${proposal.id}`)}
+                      onClick={() => navigate(`/price/propostas/${proposal.id}`)}
                       className={`grid items-center h-[34px] px-3 mx-2 cursor-pointer rounded-[100px] transition-colors ${
                         isSelected ? "bg-[#f6f7f9]" : "hover:bg-[#f6f7f9]"
                       }`}
@@ -1117,6 +1146,7 @@ export function Proposals() {
           </div>
         </div>
       )}
+
     </div>
   );
 }
