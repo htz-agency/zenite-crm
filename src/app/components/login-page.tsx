@@ -1,27 +1,35 @@
 /**
  * Login Page — Zenite (Google OAuth only)
  *
- * Full-page centered login with Zenite branding.
- * Navy/cloud palette, DM Sans, pill buttons.
+ * Pre-fetches the OAuth URL on mount and renders the login button as a real
+ * <a href> link. This guarantees the browser treats the click as a genuine
+ * user-initiated navigation, which Chrome's bounce-tracking protection
+ * cannot block (unlike programmatic window.location.href changes).
  */
 
-import { useAuth, IS_PREVIEW } from "./auth-context";
+import { useAuth, IS_PREVIEW, supabase } from "./auth-context";
 import { motion } from "motion/react";
-import { GoogleLogo, ShieldCheck, ArrowRight, WarningCircle, SpinnerGap } from "@phosphor-icons/react";
-import { useEffect, useState } from "react";
+import {
+  GoogleLogo,
+  ShieldCheck,
+  ArrowRight,
+  WarningCircle,
+  SpinnerGap,
+} from "@phosphor-icons/react";
+import { useEffect, useState, useCallback } from "react";
 import { useNavigate } from "react-router";
 import ZeniteLogo from "../../imports/Camada1";
 
 const ff = { fontFeatureSettings: "'ss01', 'ss04', 'ss05', 'ss07'" };
 
 export function LoginPage() {
-  const { signInWithGoogle, loading, session, authError, oauthUrl } = useAuth();
+  const { loading, session, authError } = useAuth();
   const navigate = useNavigate();
   const [localError, setLocalError] = useState<string | null>(null);
-  const [redirecting, setRedirecting] = useState(false);
-  const [showFallback, setShowFallback] = useState(false);
+  const [oauthUrl, setOauthUrl] = useState<string | null>(null);
+  const [preparing, setPreparing] = useState(true);
 
-  // In preview (iframe) mode, skip login entirely — RequireAuth already bypasses
+  // In preview (iframe) mode, skip login entirely
   // Also redirect if already authenticated
   useEffect(() => {
     if (IS_PREVIEW || (!loading && session)) {
@@ -29,15 +37,69 @@ export function LoginPage() {
     }
   }, [loading, session, navigate]);
 
-  // After 4s of redirecting, show fallback link
-  useEffect(() => {
-    if (!redirecting) {
-      setShowFallback(false);
-      return;
+  /**
+   * Pre-fetch the OAuth URL so we can render a real <a href> link.
+   * The Supabase SDK stores the PKCE code verifier in localStorage,
+   * so when the user returns with ?code=, the exchange will work.
+   */
+  const fetchOAuthUrl = useCallback(async () => {
+    setPreparing(true);
+    setLocalError(null);
+    try {
+      console.log("[Zenite Auth] Pre-fetching OAuth URL...");
+      const { data, error } = await supabase.auth.signInWithOAuth({
+        provider: "google",
+        options: {
+          redirectTo: window.location.origin,
+          skipBrowserRedirect: true,
+        },
+      });
+
+      if (error) {
+        console.error("[Zenite Auth] OAuth URL error:", error.message);
+        setLocalError(`Erro ao preparar login: ${error.message}`);
+        return;
+      }
+
+      if (data?.url) {
+        console.log("[Zenite Auth] OAuth URL ready:", data.url);
+        setOauthUrl(data.url);
+      } else {
+        console.error("[Zenite Auth] No OAuth URL returned");
+        setLocalError("Erro: URL de autenticação não retornada.");
+      }
+    } catch (err) {
+      console.error("[Zenite Auth] Unexpected error fetching URL:", err);
+      setLocalError(`Erro inesperado: ${String(err)}`);
+    } finally {
+      setPreparing(false);
     }
-    const t = setTimeout(() => setShowFallback(true), 4000);
-    return () => clearTimeout(t);
-  }, [redirecting]);
+  }, []);
+
+  // Fetch URL on mount
+  useEffect(() => {
+    if (!IS_PREVIEW) {
+      // CRITICAL: Do NOT pre-fetch if we're returning from an OAuth callback.
+      // Calling signInWithOAuth again would overwrite the PKCE code_verifier
+      // in localStorage, breaking the ongoing code exchange.
+      const url = new URL(window.location.href);
+      const isOAuthCallback =
+        url.searchParams.has("code") || url.hash.includes("access_token");
+
+      if (isOAuthCallback) {
+        console.log("[Zenite Login] OAuth callback in URL — skipping pre-fetch to preserve code_verifier");
+        setPreparing(false);
+        return;
+      }
+
+      fetchOAuthUrl();
+    } else {
+      setPreparing(false);
+    }
+  }, [fetchOAuthUrl]);
+
+  const isReady = !preparing && !!oauthUrl;
+  const displayError = authError || localError;
 
   return (
     <div className="min-h-screen w-full flex items-center justify-center bg-[#122232] relative overflow-hidden">
@@ -76,7 +138,6 @@ export function LoginPage() {
           transition={{ duration: 0.4, delay: 0.15 }}
           className="flex flex-col items-center mb-[40px]"
         >
-          {/* Zenite logo from Figma */}
           <div className="relative w-[200px] h-[54px] mb-[12px]">
             <ZeniteLogo />
           </div>
@@ -125,73 +186,72 @@ export function LoginPage() {
             Faça login com sua conta Google corporativa para acessar o Zenite.
           </p>
 
-          {/* Google Sign-in button */}
-          <button
-            onClick={async () => {
-              setLocalError(null);
-              setRedirecting(true);
-              setShowFallback(false);
-              try {
-                await signInWithGoogle();
-              } catch (err) {
-                console.error("[Zenite Login] Button click error:", err);
-                setLocalError(`Erro ao iniciar login: ${String(err)}`);
-                setRedirecting(false);
-              }
-            }}
-            disabled={loading || redirecting}
-            className="w-full flex items-center justify-center gap-[10px] h-[48px] rounded-[500px] bg-[#28415c] text-white hover:bg-[#1a2d40] active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer transition-all"
-            style={{
-              boxShadow: "0 2px 8px rgba(18,34,50,0.3)",
-            }}
-          >
-            {redirecting ? (
-              <SpinnerGap size={20} weight="bold" className="animate-spin" />
-            ) : (
-              <GoogleLogo size={20} weight="bold" />
-            )}
-            <span
+          {/* Google Sign-in — REAL <a> link (not a JS redirect) */}
+          {isReady ? (
+            <a
+              href={oauthUrl!}
+              className="w-full flex items-center justify-center gap-[10px] h-[48px] rounded-[500px] bg-[#28415c] text-white hover:bg-[#1a2d40] active:scale-[0.98] cursor-pointer transition-all no-underline"
               style={{
-                fontSize: 15,
-                fontWeight: 600,
-                letterSpacing: -0.3,
-                ...ff,
+                boxShadow: "0 2px 8px rgba(18,34,50,0.3)",
+                textDecoration: "none",
               }}
             >
-              {redirecting ? "Redirecionando para Google..." : "Entrar com Google"}
-            </span>
-            {!redirecting && (
+              <GoogleLogo size={20} weight="bold" />
+              <span
+                style={{
+                  fontSize: 15,
+                  fontWeight: 600,
+                  letterSpacing: -0.3,
+                  ...ff,
+                }}
+              >
+                Entrar com Google
+              </span>
               <ArrowRight size={16} weight="bold" className="ml-[4px]" />
-            )}
-          </button>
-
-          {/* Fallback manual link when redirect gets stuck */}
-          {showFallback && oauthUrl && (
-            <motion.div
-              initial={{ opacity: 0, y: -6 }}
-              animate={{ opacity: 1, y: 0 }}
-              className="mt-[12px] text-center"
+            </a>
+          ) : (
+            <button
+              disabled
+              className="w-full flex items-center justify-center gap-[10px] h-[48px] rounded-[500px] bg-[#28415c] text-white opacity-60 cursor-not-allowed transition-all"
+              style={{
+                boxShadow: "0 2px 8px rgba(18,34,50,0.3)",
+              }}
             >
-              <p
-                className="text-[#4e6987] mb-[8px]"
-                style={{ fontSize: 12, ...ff }}
+              <SpinnerGap size={20} weight="bold" className="animate-spin" />
+              <span
+                style={{
+                  fontSize: 15,
+                  fontWeight: 600,
+                  letterSpacing: -0.3,
+                  ...ff,
+                }}
               >
-                Redirect travou? Clique no link abaixo:
-              </p>
-              <a
-                href={oauthUrl}
-                className="inline-flex items-center gap-[6px] text-[#07abde] hover:text-[#0483AB] underline transition-colors"
-                style={{ fontSize: 13, fontWeight: 600, ...ff }}
-              >
-                <GoogleLogo size={16} weight="bold" />
-                Abrir login Google manualmente
-                <ArrowRight size={14} weight="bold" />
-              </a>
-            </motion.div>
+                {preparing ? "Preparando login..." : "Erro ao carregar"}
+              </span>
+            </button>
           )}
 
-          {/* Domain error message */}
-          {(authError || localError) && (
+          {/* Retry button if URL fetch failed */}
+          {!preparing && !oauthUrl && (
+            <button
+              onClick={fetchOAuthUrl}
+              className="w-full mt-[10px] flex items-center justify-center gap-[8px] h-[40px] rounded-[500px] bg-transparent border border-[#28415c] text-[#28415c] hover:bg-[#f6f7f9] cursor-pointer transition-all"
+            >
+              <span
+                style={{
+                  fontSize: 13,
+                  fontWeight: 600,
+                  letterSpacing: -0.3,
+                  ...ff,
+                }}
+              >
+                Tentar novamente
+              </span>
+            </button>
+          )}
+
+          {/* Error message */}
+          {displayError && (
             <motion.div
               initial={{ opacity: 0, y: -6 }}
               animate={{ opacity: 1, y: 0 }}
@@ -211,7 +271,7 @@ export function LoginPage() {
                   ...ff,
                 }}
               >
-                {authError || localError}
+                {displayError}
               </span>
             </motion.div>
           )}

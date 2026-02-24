@@ -123,7 +123,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((event, s) => {
-      console.log("[Zenite Auth] onAuthStateChange:", event);
+      console.log("[Zenite Auth] onAuthStateChange:", event, s ? "has session" : "no session");
+
+      // BUG FIX: During an OAuth callback, INITIAL_SESSION fires with null
+      // session BEFORE the code exchange completes. If we set loading=false
+      // here, RequireAuth redirects to /login which overwrites the PKCE
+      // code_verifier. So we skip this event when we know the exchange is
+      // still in progress.
+      if (event === "INITIAL_SESSION" && !s && hasOAuthCallback) {
+        console.log("[Zenite Auth] Skipping INITIAL_SESSION — waiting for code exchange...");
+        return;
+      }
+
+      // Clean up OAuth params from URL after successful exchange
+      if (s && hasOAuthCallback) {
+        console.log("[Zenite Auth] Session established after OAuth callback — cleaning URL");
+        window.history.replaceState({}, "", window.location.pathname);
+      }
+
       validateAndSetSession(s).then(() => setLoading(false));
     });
 
