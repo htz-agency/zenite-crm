@@ -257,12 +257,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 export function useAuth() {
   const ctx = useContext(AuthContext);
   if (!ctx) {
-    // Return safe fallback instead of throwing.
-    // This happens in:
-    //   - Figma Make preview (components rendered in isolation)
-    //   - HMR / React Refresh (provider not yet mounted)
-    //   - Catch-all routes outside RootLayout
-    console.warn("[Zenite Auth] useAuth called outside AuthProvider — returning fallback");
+    // In preview/iframe (Figma Make), components often render outside the
+    // provider tree — this is expected behaviour, not an error.
+    if (!IS_PREVIEW) {
+      console.warn("[Zenite Auth] useAuth called outside AuthProvider — returning fallback");
+    }
     return {
       session: null,
       user: null,
