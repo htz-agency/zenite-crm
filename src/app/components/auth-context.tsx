@@ -18,7 +18,7 @@ import {
   type ReactNode,
 } from "react";
 import { createClient, type Session, type User } from "@supabase/supabase-js";
-import { projectId, publicAnonKey } from "/utils/supabase/info";
+import { projectId, publicAnonKey } from "../../../utils/supabase/info";
 
 /* ================================================================== */
 /*  Supabase singleton                                                 */

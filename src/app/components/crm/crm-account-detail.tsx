@@ -25,6 +25,7 @@ import {
   CircleNotch,
   Invoice,
   CheckCircle,
+  FunnelSimple,
 } from "@phosphor-icons/react";
 import { motion, AnimatePresence } from "motion/react";
 import imgAvatar from "figma:asset/d5fb6bc139a3da5bc43ab0601942a4cf33722fa1.png";
@@ -580,7 +581,7 @@ function TabDetalhes({
         >
           <div className="mt-[12px] pl-[39px]">
             <div className="grid grid-cols-2 lg:grid-cols-3 gap-[12px]">
-              {fv("ac_billing_street") && <div className="lg:col-span-3">
+              {fv("ac_billing_street") && <div key="billingStreet" className="lg:col-span-3">
                 <EditableField
                   label={fl("ac_billing_street")}
                   value={accountType === "empresa" ? account.billingStreet : account.personalStreet}
@@ -588,21 +589,25 @@ function TabDetalhes({
                 />
               </div>}
               {fv("ac_billing_city") && <EditableField
+                key="billingCity"
                 label={fl("ac_billing_city")}
                 value={accountType === "empresa" ? account.billingCity : account.personalCity}
                 onChange={(val) => onFieldChange?.(accountType === "empresa" ? "billingCity" : "personalCity", val)}
               />}
               {fv("ac_billing_state") && <EditableField
+                key="billingState"
                 label={fl("ac_billing_state")}
                 value={accountType === "empresa" ? account.billingState : account.personalState}
                 onChange={(val) => onFieldChange?.(accountType === "empresa" ? "billingState" : "personalState", val)}
               />}
               {fv("ac_billing_zip") && <EditableField
+                key="billingZip"
                 label={fl("ac_billing_zip")}
                 value={accountType === "empresa" ? account.billingZip : account.personalZip}
                 onChange={(val) => onFieldChange?.(accountType === "empresa" ? "billingZip" : "personalZip", val)}
               />}
               {fv("ac_billing_country") && <EditableField
+                key="billingCountry"
                 label={fl("ac_billing_country")}
                 value={accountType === "empresa" ? account.billingCountry : account.personalCountry}
                 onChange={(val) => onFieldChange?.(accountType === "empresa" ? "billingCountry" : "personalCountry", val)}
@@ -618,13 +623,13 @@ function TabDetalhes({
           <SectionToggle title="Endereço de Entrega" expanded={addressShippingOpen} onToggle={() => setAddressShippingOpen((v) => !v)}>
             <div className="mt-[12px] pl-[39px]">
               <div className="grid grid-cols-2 lg:grid-cols-3 gap-[12px]">
-                {fv("ac_shipping_street") && <div className="lg:col-span-3">
+                {fv("ac_shipping_street") && <div key="shippingStreet" className="lg:col-span-3">
                   <EditableField label={fl("ac_shipping_street")} value={account.shippingStreet} onChange={(val) => onFieldChange?.("shippingStreet", val)} />
                 </div>}
-                {fv("ac_shipping_city") && <EditableField label={fl("ac_shipping_city")} value={account.shippingCity} onChange={(val) => onFieldChange?.("shippingCity", val)} />}
-                {fv("ac_shipping_state") && <EditableField label={fl("ac_shipping_state")} value={account.shippingState} onChange={(val) => onFieldChange?.("shippingState", val)} />}
-                {fv("ac_shipping_zip") && <EditableField label={fl("ac_shipping_zip")} value={account.shippingZip} onChange={(val) => onFieldChange?.("shippingZip", val)} />}
-                {fv("ac_shipping_country") && <EditableField label={fl("ac_shipping_country")} value={account.shippingCountry} onChange={(val) => onFieldChange?.("shippingCountry", val)} />}
+                {fv("ac_shipping_city") && <EditableField key="shippingCity" label={fl("ac_shipping_city")} value={account.shippingCity} onChange={(val) => onFieldChange?.("shippingCity", val)} />}
+                {fv("ac_shipping_state") && <EditableField key="shippingState" label={fl("ac_shipping_state")} value={account.shippingState} onChange={(val) => onFieldChange?.("shippingState", val)} />}
+                {fv("ac_shipping_zip") && <EditableField key="shippingZip" label={fl("ac_shipping_zip")} value={account.shippingZip} onChange={(val) => onFieldChange?.("shippingZip", val)} />}
+                {fv("ac_shipping_country") && <EditableField key="shippingCountry" label={fl("ac_shipping_country")} value={account.shippingCountry} onChange={(val) => onFieldChange?.("shippingCountry", val)} />}
               </div>
             </div>
           </SectionToggle>
@@ -663,7 +668,7 @@ function TabDetalhes({
         <SectionToggle title="Dados Complementares" expanded={complementarOpen} onToggle={() => setComplementarOpen((v) => !v)}>
           <div className="mt-[12px] pl-[39px]">
             <div className="grid grid-cols-2 lg:grid-cols-3 gap-[12px]">
-              <div className="lg:col-span-3">
+              <div key="tags" className="lg:col-span-3">
                 {fv("ac_tags") && <EditableField
                   label={fl("ac_tags")}
                   value={account.tags}
@@ -672,13 +677,14 @@ function TabDetalhes({
                   options={getFieldOptions("conta", "ac_tags")}
                 />}
               </div>
-              <div className="lg:col-span-3">
+              <div key="notes" className="lg:col-span-3">
                 {fv("ac_notes") && <EditableField label={fl("ac_notes")} value={account.notes} fieldType="textarea" onChange={(val) => onFieldChange?.("notes", val)} />}
               </div>
             </div>
             {/* Formula fields */}
             <div className="grid grid-cols-2 lg:grid-cols-3 gap-[12px] mt-[12px]">
               <EditableField
+                key="formulaDaysNoContact"
                 label={fl("ac_days_no_contact")}
                 value=""
                 fieldType="calculated"
@@ -690,6 +696,7 @@ function TabDetalhes({
               />
               {accountType === "empresa" && (
                 <EditableField
+                  key="formulaRevPerEmployee"
                   label={fl("ac_rev_per_employee")}
                   value=""
                   fieldType="calculated"
@@ -701,6 +708,7 @@ function TabDetalhes({
                 />
               )}
               <EditableField
+                key="formulaInactivityAlert"
                 label={fl("ac_inactivity_alert")}
                 value=""
                 fieldType="calculated"
@@ -1480,18 +1488,18 @@ export function CrmAccountDetail() {
 
         {/* Row 2: Summary bar */}
         <div className="grid grid-cols-[repeat(auto-fill,minmax(150px,1fr))] gap-[12px]">
-          <EditableField label={fl("ac_id")} value={account.id} editable={false} />
-          <EditableField label={fl("ac_type")} value={accountType === "empresa" ? "Empresa" : "Pessoal"} editable={false} />
+          <EditableField key="sumId" label={fl("ac_id")} value={account.id} editable={false} />
+          <EditableField key="sumType" label={fl("ac_type")} value={accountType === "empresa" ? "Empresa" : "Pessoal"} editable={false} />
           {accountType === "empresa" && (
-            <>
-              <EditableField label={fl("ac_sector")} value={account.sector} editable={false} />
-              <EditableField label={fl("ac_annual_revenue")} value={formatCurrency(account.annualRevenue)} editable={false} />
-            </>
+            <EditableField key="sumSector" label={fl("ac_sector")} value={account.sector} editable={false} />
+          )}
+          {accountType === "empresa" && (
+            <EditableField key="sumRevenue" label={fl("ac_annual_revenue")} value={formatCurrency(account.annualRevenue)} editable={false} />
           )}
           {accountType === "pessoal" && (
-            <EditableField label={fl("ac_email")} value={account.email} editable={false} />
+            <EditableField key="sumEmail" label={fl("ac_email")} value={account.email} editable={false} />
           )}
-          <EditableField label={fl("ac_last_activity")} value={account.lastActivity} ai editable={false} />
+          <EditableField key="sumLastActivity" label={fl("ac_last_activity")} value={account.lastActivity} ai editable={false} />
         </div>
       </div>
 

@@ -410,7 +410,7 @@ function TabDetalhes({
     <FieldDndProvider>
     <div className="grid grid-cols-1 lg:grid-cols-3 gap-[16px]">
       {/* COL 1-2: Detalhes da Oportunidade */}
-      <div className="lg:col-span-2 flex flex-col gap-[16px]">
+      <div key="col-detalhes" className="lg:col-span-2 flex flex-col gap-[16px]">
         <SectionToggle title="Detalhes da Oportunidade" expanded={detailsOpen} onToggle={() => setDetailsOpen((v) => !v)}>
           <div className="mt-[12px] pl-[39px]">
             <DraggableFieldGrid storageKey={`op-base-${op.id}`} columns={2}>
@@ -499,7 +499,7 @@ function TabDetalhes({
       </div>
 
       {/* COL 3: Probabilidade de compra */}
-      <div className="lg:col-span-1">
+      <div key="col-prob" className="lg:col-span-1">
         <SectionToggle title="Probabilidade de compra" expanded={probabilityOpen} onToggle={() => setProbabilityOpen((v) => !v)}>
           <div className="mt-[12px] pl-[39px] flex flex-col gap-[16px]">
             <div className="flex items-center gap-[6px]">
@@ -518,7 +518,7 @@ function TabDetalhes({
       </div>
 
       {/* FULL WIDTH: Levantamento de necessidades */}
-      <div className="lg:col-span-3">
+      <div key="col-needs" className="lg:col-span-3">
         <SectionToggle title="Levantamento de necessidades" expanded={needsOpen} onToggle={() => setNeedsOpen((v) => !v)}>
           <div className="mt-[12px] pl-[39px]">
             <DraggableFieldGrid storageKey={`op-needs-${op.id}`} columns={3}>
@@ -534,7 +534,7 @@ function TabDetalhes({
       </div>
 
       {/* FULL WIDTH: Marketing */}
-      <div className="lg:col-span-3">
+      <div key="col-mkt" className="lg:col-span-3">
         <SectionToggle title="Dados de Marketing" expanded={marketingOpen} onToggle={() => setMarketingOpen((v) => !v)}>
           <div className="mt-[12px] pl-[39px]">
             <DraggableFieldGrid storageKey={`op-mkt-${op.id}`} columns={3}>
@@ -557,7 +557,7 @@ function TabDetalhes({
       </div>
 
       {/* FULL WIDTH: Informações da Oportunidade */}
-      <div className="lg:col-span-3">
+      <div key="col-info" className="lg:col-span-3">
         <SectionToggle title="Informações da Oportunidade" expanded={infoOpen} onToggle={() => setInfoOpen((v) => !v)}>
           <div className="mt-[12px] pl-[39px]">
             <DraggableFieldGrid storageKey={`op-info-${op.id}`} columns={3}>
@@ -571,7 +571,7 @@ function TabDetalhes({
       </div>
 
       {/* FULL WIDTH: Informações do Sistema */}
-      <div className="lg:col-span-3">
+      <div key="col-sys" className="lg:col-span-3">
         <SectionToggle title="Informações do Sistema" expanded={systemOpen} onToggle={() => setSystemOpen((v) => !v)}>
           <div className="mt-[12px] pl-[39px]">
             <DraggableFieldGrid storageKey={`op-sys-${op.id}`} columns={3}>
@@ -658,7 +658,7 @@ function TabDetalhes({
       </div>
       {/* ═══ FULL WIDTH : Campos Customizados ═══ */}
       {customFields && customFields.length > 0 && (
-        <div className="lg:col-span-3 flex flex-col gap-[16px]">
+        <div key="col-custom" className="lg:col-span-3 flex flex-col gap-[16px]">
           <SectionToggle title="Campos Customizados" expanded={true} onToggle={() => {}}>
             <div className="mt-[12px] pl-[39px]">
               <DraggableFieldGrid storageKey={`op-custom-${op.id}`} columns={2}>
@@ -761,6 +761,7 @@ function CatalogPicker({
       {open && (
         <>
           <motion.div
+            key="svc-picker-overlay"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
@@ -768,6 +769,7 @@ function CatalogPicker({
             onClick={onClose}
           />
           <motion.div
+            key="svc-picker-panel"
             initial={{ x: "100%" }}
             animate={{ x: 0 }}
             exit={{ x: "100%" }}
@@ -1207,6 +1209,7 @@ function ProposalPicker({
       {open && (
         <>
           <motion.div
+            key="prop-picker-overlay"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
@@ -1214,6 +1217,7 @@ function ProposalPicker({
             onClick={onClose}
           />
           <motion.div
+            key="prop-picker-panel"
             initial={{ x: "100%" }}
             animate={{ x: 0 }}
             exit={{ x: "100%" }}
@@ -1530,7 +1534,7 @@ function TabPropostas({
 
                   {/* Actions */}
                   <button
-                    onClick={() => navigate(`/price/propostas/${fd.id}`)}
+                    onClick={() => window.open(`https://price.htz.agency/price/propostas/${fd.id}`, "_blank")}
                     className={`h-[32px] px-[12px] rounded-[500px] cursor-pointer transition-colors flex items-center gap-[5px] ${
                       lp.active
                         ? "bg-[#F6F7F9]/15 text-[#F6F7F9] hover:bg-[#F6F7F9]/25"

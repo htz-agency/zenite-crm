@@ -20,6 +20,81 @@ const supabase = () =>
 const PREFIX = "/make-server-b0da2601/crm";
 
 /* ================================================================== */
+/*  Auth + Permission helpers                                          */
+/* ================================================================== */
+
+interface AuthInfo {
+  userId: string;
+  role: string;
+}
+
+/** Resolve user from Authorization Bearer token. Returns null if anon key or invalid. */
+async function resolveAuth(c: any): Promise<AuthInfo | null> {
+  try {
+    const token = c.req.header("Authorization")?.split(" ")[1];
+    if (!token) return null;
+
+    const db = supabase();
+    const { data, error } = await db.auth.getUser(token);
+    if (error || !data?.user) return null;
+
+    const role = ((await kv.get(`user_role:${data.user.id}`)) as string) || "membro";
+    return { userId: data.user.id, role };
+  } catch (err) {
+    console.log("resolveAuth error:", err);
+    return null;
+  }
+}
+
+type PermAction = "exibir" | "criar" | "editar" | "excluir";
+type PermLevel = "todos" | "proprios" | "nenhum";
+
+interface PermResult {
+  allowed: boolean;
+  level?: PermLevel;
+}
+
+/**
+ * Check if a role is allowed to perform an action on an object.
+ * For level-based actions (exibir/editar/excluir) with "proprios",
+ * compare record's owner field with userId.
+ */
+async function checkPermission(
+  role: string,
+  objectKey: string,
+  action: PermAction,
+  ownerId?: string | null,
+  userId?: string,
+): Promise<PermResult> {
+  // Admin always allowed
+  if (role === "admin") return { allowed: true, level: "todos" };
+
+  // Load permissions matrix from KV
+  const matrix = (await kv.get("crm_permissions")) as Record<string, any> | null;
+  if (!matrix) return { allowed: true }; // No matrix configured → allow (fallback)
+
+  const rolePerms = matrix[role];
+  if (!rolePerms) return { allowed: true }; // Role not in matrix → allow
+
+  const objPerms = rolePerms[objectKey];
+  if (!objPerms) return { allowed: true }; // Object not in matrix → allow
+
+  if (action === "criar") {
+    return { allowed: !!objPerms.criar };
+  }
+
+  const level = objPerms[action] as PermLevel;
+  if (!level || level === "todos") return { allowed: true, level: level ?? "todos" };
+  if (level === "nenhum") return { allowed: false, level };
+  if (level === "proprios") {
+    if (!userId || !ownerId) return { allowed: false, level };
+    return { allowed: ownerId === userId, level };
+  }
+
+  return { allowed: true };
+}
+
+/* ================================================================== */
 /*  Startup: drop incorrect FK on crm_leads.company (it's plain text) */
 /* ================================================================== */
 
@@ -67,14 +142,39 @@ function registerCrud(
     select?: string;
     defaultValues?: Record<string, unknown>;
     idPrefix?: string;
+    /** Key in the permissions matrix (e.g. "leads", "contas"). If omitted, no perm check. */
+    objectKey?: string;
   },
 ) {
-  const { orderBy = "created_at", orderAsc = false, select = "*", defaultValues = {}, idPrefix } = opts ?? {};
+  const { orderBy = "created_at", orderAsc = false, select = "*", defaultValues = {}, idPrefix, objectKey } = opts ?? {};
 
-  // List
+  // ── List ──
   crm.get(`${PREFIX}/${route}`, async (c) => {
     try {
       const db = supabase();
+      const auth = objectKey ? await resolveAuth(c) : null;
+
+      // Check "exibir" permission
+      if (auth && objectKey) {
+        const perm = await checkPermission(auth.role, objectKey, "exibir", null, auth.userId);
+        if (!perm.allowed) {
+          return c.json({ data: [] }); // nenhum → empty list
+        }
+        // "proprios" → filter by owner = userId
+        if (perm.level === "proprios") {
+          const { data, error } = await db
+            .from(table)
+            .select(select)
+            .eq("owner", auth.userId)
+            .order(orderBy, { ascending: orderAsc });
+          if (error) {
+            console.log(`Error listing ${table} (own):`, error);
+            return c.json({ error: `Error listing ${table}: ${error.message}` }, 500);
+          }
+          return c.json({ data: data ?? [] });
+        }
+      }
+
       const { data, error } = await db
         .from(table)
         .select(select)
@@ -90,7 +190,7 @@ function registerCrud(
     }
   });
 
-  // Get by ID
+  // ── Get by ID ──
   crm.get(`${PREFIX}/${route}/:id`, async (c) => {
     try {
       const id = c.req.param("id");
@@ -105,6 +205,18 @@ function registerCrud(
         return c.json({ error: `Error fetching ${table}: ${error.message}` }, 500);
       }
       if (!data) return c.json({ error: `${table} ${id} not found` }, 404);
+
+      // Check "exibir" with ownership
+      if (objectKey) {
+        const auth = await resolveAuth(c);
+        if (auth) {
+          const perm = await checkPermission(auth.role, objectKey, "exibir", data.owner, auth.userId);
+          if (!perm.allowed) {
+            return c.json({ error: "Sem permissao para visualizar este registro" }, 403);
+          }
+        }
+      }
+
       return c.json({ data });
     } catch (err) {
       console.log(`Unexpected error fetching ${table}:`, err);
@@ -112,14 +224,28 @@ function registerCrud(
     }
   });
 
-  // Create
+  // ── Create ──
   crm.post(`${PREFIX}/${route}`, async (c) => {
     try {
+      const auth = objectKey ? await resolveAuth(c) : null;
+
+      // Check "criar" permission
+      if (auth && objectKey) {
+        const perm = await checkPermission(auth.role, objectKey, "criar");
+        if (!perm.allowed) {
+          return c.json({ error: "Sem permissao para criar registros neste objeto" }, 403);
+        }
+      }
+
       const body = await c.req.json();
       const db = supabase();
       const row = { ...defaultValues, ...body };
       if (idPrefix && !row.id) {
         row.id = generateCrmId(idPrefix);
+      }
+      // Auto-assign owner to current user if not provided
+      if (auth && (!row.owner || row.owner === "Eu" || row.owner === "Sistema")) {
+        row.owner = auth.userId;
       }
       const { data, error } = await db.from(table).insert(row).select(select).single();
       if (error) {
@@ -133,9 +259,17 @@ function registerCrud(
     }
   });
 
-  // Bulk create (upsert)
+  // ── Bulk create (upsert) ──
   crm.post(`${PREFIX}/${route}/bulk`, async (c) => {
     try {
+      const auth = objectKey ? await resolveAuth(c) : null;
+      if (auth && objectKey) {
+        const perm = await checkPermission(auth.role, objectKey, "criar");
+        if (!perm.allowed) {
+          return c.json({ error: "Sem permissao para criar registros neste objeto" }, 403);
+        }
+      }
+
       const body = await c.req.json();
       const rows: any[] = Array.isArray(body) ? body : body.rows;
       if (!rows || rows.length === 0) return c.json({ data: [] });
@@ -144,6 +278,9 @@ function registerCrud(
         const row = { ...defaultValues, ...r };
         if (idPrefix && !row.id) {
           row.id = generateCrmId(idPrefix);
+        }
+        if (auth && (!row.owner || row.owner === "Eu" || row.owner === "Sistema")) {
+          row.owner = auth.userId;
         }
         return row;
       });
@@ -162,12 +299,25 @@ function registerCrud(
     }
   });
 
-  // Update
+  // ── Update ──
   crm.put(`${PREFIX}/${route}/:id`, async (c) => {
     try {
       const id = c.req.param("id");
-      const body = await c.req.json();
       const db = supabase();
+
+      // Check "editar" permission (need to fetch record for ownership check)
+      if (objectKey) {
+        const auth = await resolveAuth(c);
+        if (auth) {
+          const { data: existing } = await db.from(table).select("owner").eq("id", id).maybeSingle();
+          const perm = await checkPermission(auth.role, objectKey, "editar", existing?.owner, auth.userId);
+          if (!perm.allowed) {
+            return c.json({ error: "Sem permissao para editar este registro" }, 403);
+          }
+        }
+      }
+
+      const body = await c.req.json();
       const { data, error } = await db
         .from(table)
         .update({ ...body, updated_at: new Date().toISOString() })
@@ -185,12 +335,24 @@ function registerCrud(
     }
   });
 
-  // Patch (partial)
+  // ── Patch (partial) ──
   crm.patch(`${PREFIX}/${route}/:id`, async (c) => {
     try {
       const id = c.req.param("id");
-      const body = await c.req.json();
       const db = supabase();
+
+      if (objectKey) {
+        const auth = await resolveAuth(c);
+        if (auth) {
+          const { data: existing } = await db.from(table).select("owner").eq("id", id).maybeSingle();
+          const perm = await checkPermission(auth.role, objectKey, "editar", existing?.owner, auth.userId);
+          if (!perm.allowed) {
+            return c.json({ error: "Sem permissao para editar este registro" }, 403);
+          }
+        }
+      }
+
+      const body = await c.req.json();
       const { data, error } = await db
         .from(table)
         .update(body)
@@ -208,11 +370,23 @@ function registerCrud(
     }
   });
 
-  // Delete
+  // ── Delete ──
   crm.delete(`${PREFIX}/${route}/:id`, async (c) => {
     try {
       const id = c.req.param("id");
       const db = supabase();
+
+      if (objectKey) {
+        const auth = await resolveAuth(c);
+        if (auth) {
+          const { data: existing } = await db.from(table).select("owner").eq("id", id).maybeSingle();
+          const perm = await checkPermission(auth.role, objectKey, "excluir", existing?.owner, auth.userId);
+          if (!perm.allowed) {
+            return c.json({ error: "Sem permissao para excluir este registro" }, 403);
+          }
+        }
+      }
+
       const { error } = await db.from(table).delete().eq("id", id);
       if (error) {
         console.log(`Error deleting ${table} ${id}:`, error);
@@ -234,48 +408,56 @@ registerCrud("crm_accounts", "accounts", {
   orderBy: "created_at",
   orderAsc: false,
   idPrefix: "AC",
+  objectKey: "contas",
 });
 
 registerCrud("crm_leads", "leads", {
   orderBy: "created_at",
   orderAsc: false,
   idPrefix: "LD",
+  objectKey: "leads",
 });
 
 registerCrud("crm_opportunities", "opportunities", {
   orderBy: "created_at",
   orderAsc: false,
   idPrefix: "OP",
+  objectKey: "oportunidades",
 });
 
 registerCrud("crm_contacts", "contacts", {
   orderBy: "created_at",
   orderAsc: false,
   idPrefix: "CT",
+  objectKey: "contatos",
 });
 
 registerCrud("crm_activities", "activities", {
   orderBy: "created_at",
   orderAsc: false,
   idPrefix: "AT",
+  objectKey: "atividades",
 });
 
 registerCrud("crm_call_records", "call-records", {
   orderBy: "created_at",
   orderAsc: false,
   idPrefix: "CR",
+  // No objectKey → no permission check (sub-records)
 });
 
 registerCrud("crm_field_history", "field-history", {
   orderBy: "changed_at",
   orderAsc: false,
   idPrefix: "FH",
+  // No objectKey → no permission check (audit trail)
 });
 
 registerCrud("crm_opportunity_proposals", "opportunity-proposals", {
   orderBy: "created_at",
   orderAsc: false,
   idPrefix: "PR",
+  objectKey: "propostas",
 });
 
 /* ================================================================== */

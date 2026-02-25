@@ -18,7 +18,7 @@ import {
 } from "@phosphor-icons/react";
 import { useEffect, useState, useCallback } from "react";
 import { useNavigate } from "react-router";
-import ZeniteLogo from "../../imports/Camada1";
+import LogoZeniteCrm from "../../imports/LogoZeniteCrm";
 
 const ff = { fontFeatureSettings: "'ss01', 'ss04', 'ss05', 'ss07'" };
 
@@ -33,7 +33,7 @@ export function LoginPage() {
   // Also redirect if already authenticated
   useEffect(() => {
     if (IS_PREVIEW || (!loading && session)) {
-      navigate("/price", { replace: true });
+      navigate("/crm", { replace: true });
     }
   }, [loading, session, navigate]);
 
@@ -139,7 +139,7 @@ export function LoginPage() {
           className="flex flex-col items-center mb-[40px]"
         >
           <div className="relative w-[200px] h-[54px] mb-[12px]">
-            <ZeniteLogo />
+            <LogoZeniteCrm />
           </div>
           <span
             className="text-[#4e6987] mt-[4px]"

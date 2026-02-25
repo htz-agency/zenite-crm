@@ -2,17 +2,6 @@ import { CrmAccountDetail } from "./components/crm/crm-account-detail";
 import { CrmSearchResults } from "./components/crm/crm-search-results";
 import { useEffect } from "react";
 import { createBrowserRouter, useNavigate } from "react-router";
-import { Layout } from "./components/layout";
-import { Dashboard } from "./components/dashboard";
-import { ServiceList } from "./components/service-list";
-import { NewProposal } from "./components/new-proposal";
-import { Proposals } from "./components/proposals";
-import { ProposalDetail } from "./components/proposal-detail";
-import { PriceTable } from "./components/price-table";
-import { NewService } from "./components/new-service";
-import { Settings } from "./components/settings";
-import { Shortcuts } from "./components/shortcuts";
-import { SearchResults } from "./components/search-results";
 import { CrmLayout } from "./components/crm/crm-layout";
 import { CrmDashboard } from "./components/crm/crm-dashboard";
 import { CrmPlaceholder } from "./components/crm/crm-placeholder";
@@ -24,6 +13,8 @@ import { CrmSettingsPlaceholder } from "./components/crm/crm-settings-placeholde
 import { CrmSettingsNativeFields } from "./components/crm/crm-settings-native-fields";
 import { CrmSettingsCreateField } from "./components/crm/crm-settings-create-field";
 import { CrmSheets } from "./components/crm/crm-sheets";
+import { CrmUsers } from "./components/crm/crm-users";
+import { CrmHierarchy } from "./components/crm/crm-hierarchy";
 import { CrmOpportunities } from "./components/crm/crm-opportunities";
 import { CrmOpportunityDetail } from "./components/crm/crm-opportunity-detail";
 import { CrmPipeSettings } from "./components/crm/crm-pipe-settings";
@@ -34,23 +25,17 @@ import { CrmAccounts } from "./components/crm/crm-accounts";
 import { LoginPage } from "./components/login-page";
 import { RequireAuth } from "./components/require-auth";
 import { RootLayout } from "./components/root-layout";
-import { PublicProposal } from "./components/public-proposal";
-import { ProposalTemplateEditor } from "./components/proposal-template-editor";
 
-/** Catch-all component that redirects any unmatched route to /price */
-function RedirectToPrice() {
+/** Catch-all component that redirects any unmatched route to /crm */
+function RedirectToCrm() {
   const navigate = useNavigate();
   useEffect(() => {
-    navigate("/price", { replace: true });
+    navigate("/crm", { replace: true });
   }, [navigate]);
   return null;
 }
 
 export const router = createBrowserRouter([
-  {
-    path: "/p/:token",
-    Component: PublicProposal,
-  },
   {
     path: "/",
     Component: RootLayout,
@@ -62,26 +47,7 @@ export const router = createBrowserRouter([
       {
         Component: RequireAuth,
         children: [
-          { index: true, Component: RedirectToPrice },
-          {
-            path: "price",
-            Component: Layout,
-            children: [
-              { index: true, Component: Dashboard },
-              { path: "servicos/:group", Component: ServiceList },
-              { path: "novo-servico", Component: NewService },
-              { path: "nova-proposta", Component: NewProposal },
-              { path: "editar-proposta/:id", Component: NewProposal },
-              { path: "propostas", Component: Proposals },
-              { path: "propostas/:id", Component: ProposalDetail },
-              { path: "template-proposta", Component: ProposalTemplateEditor },
-              { path: "tabela-precos", Component: PriceTable },
-              { path: "ajustes", Component: Settings },
-              { path: "atalho", Component: Shortcuts },
-              { path: "resultados", Component: SearchResults },
-              { path: "*", Component: Dashboard },
-            ],
-          },
+          { index: true, Component: RedirectToCrm },
           {
             path: "crm",
             Component: CrmLayout,
@@ -126,9 +92,9 @@ export const router = createBrowserRouter([
               { path: "ajustes/geral", Component: CrmSettingsPlaceholder },
               { path: "ajustes/notificacoes", Component: CrmSettingsPlaceholder },
               { path: "ajustes/padroes", Component: CrmSettingsPlaceholder },
-              { path: "ajustes/usuarios", Component: CrmSettingsPlaceholder },
+              { path: "ajustes/usuarios", Component: CrmUsers },
               { path: "ajustes/equipes", Component: CrmSettingsPlaceholder },
-              { path: "ajustes/hierarquia", Component: CrmSettingsPlaceholder },
+              { path: "ajustes/hierarquia", Component: CrmHierarchy },
               { path: "ajustes/seguranca", Component: CrmSettingsPlaceholder },
               { path: "ajustes/campos", Component: CrmSettingsNativeFields },
               { path: "ajustes/campos/novo", Component: CrmSettingsCreateField },
@@ -150,7 +116,7 @@ export const router = createBrowserRouter([
       },
       {
         path: "*",
-        Component: RedirectToPrice,
+        Component: RedirectToCrm,
       },
     ],
   },

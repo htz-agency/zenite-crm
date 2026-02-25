@@ -172,6 +172,7 @@ function Picker<T extends { id: string; name: string }>({
       <AnimatePresence>
         {open && (
           <motion.div
+            key="account-search-dropdown"
             initial={{ opacity: 0, y: -4 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -4 }}
@@ -444,6 +445,7 @@ export function ConvertLeadModal({ open, onClose, onConverted, lead }: ConvertLe
         <>
           {/* Backdrop */}
           <motion.div
+            key="convert-modal-backdrop"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
@@ -454,6 +456,7 @@ export function ConvertLeadModal({ open, onClose, onConverted, lead }: ConvertLe
 
           {/* Modal */}
           <motion.div
+            key="convert-modal-panel"
             initial={{ opacity: 0, scale: 0.95, y: 20 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.95, y: 20 }}

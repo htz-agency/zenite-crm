@@ -5,13 +5,30 @@
  * Handles camelCase ↔ snake_case mapping between frontend and DB.
  */
 
-import { projectId, publicAnonKey } from "/utils/supabase/info";
+import { projectId, publicAnonKey } from "../../../../utils/supabase/info";
 
 const BASE = `https://${projectId}.supabase.co/functions/v1/make-server-b0da2601/crm`;
+const BASE_ROOT = `https://${projectId}.supabase.co/functions/v1/make-server-b0da2601`;
+
+/* ================================================================== */
+/*  Auth token management                                              */
+/* ================================================================== */
+
+let _authToken: string | null = null;
+
+/** Set the user's access token for authenticated API requests */
+export function setAuthToken(token: string | null) {
+  _authToken = token;
+}
+
+/** Get current auth token (for debugging) */
+export function getAuthToken(): string | null {
+  return _authToken;
+}
 
 const headers = () => ({
   "Content-Type": "application/json",
-  Authorization: `Bearer ${publicAnonKey}`,
+  Authorization: `Bearer ${_authToken || publicAnonKey}`,
 });
 
 async function apiFetch<T>(path: string, options?: RequestInit): Promise<T> {
@@ -913,5 +930,84 @@ export async function patchObjectConfig(
   return apiFetch<ObjectConfig>(`/obj-config/${objectType}`, {
     method: "PATCH",
     body: JSON.stringify(partial),
+  });
+}
+
+/* ================================================================== */
+/*  Team Members — from Supabase auth.users                            */
+/* ================================================================== */
+
+export interface TeamMember {
+  id: string;
+  email: string;
+  name: string;
+  avatarUrl: string | null;
+  createdAt: string;
+  lastSignInAt: string | null;
+  emailConfirmedAt: string | null;
+  phone: string | null;
+}
+
+async function rootApiFetch<T>(path: string, options?: RequestInit): Promise<T> {
+  const res = await fetch(`${BASE_ROOT}${path}`, {
+    ...options,
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${_authToken || publicAnonKey}`, ...options?.headers },
+  });
+  const json = await res.json();
+  if (!res.ok) {
+    const errMsg = json?.error || `HTTP ${res.status}`;
+    console.error(`Team API error [${path}]:`, errMsg);
+    throw new Error(errMsg);
+  }
+  return json.data;
+}
+
+export async function listTeamMembers(): Promise<TeamMember[]> {
+  const raw = await rootApiFetch<any[]>("/team/members");
+  return (raw ?? []).map((m: any) => ({
+    id: m.id,
+    email: m.email,
+    name: m.name,
+    avatarUrl: m.avatar_url,
+    createdAt: m.created_at,
+    lastSignInAt: m.last_sign_in_at,
+    emailConfirmedAt: m.email_confirmed_at,
+    phone: m.phone,
+  }));
+}
+
+export async function getUserRole(userId: string): Promise<string> {
+  const data = await rootApiFetch<{ userId: string; role: string }>(`/team/members/${userId}/role`);
+  return data.role;
+}
+
+export async function setUserRole(userId: string, role: string): Promise<void> {
+  await rootApiFetch<any>(`/team/members/${userId}/role`, {
+    method: "PUT",
+    body: JSON.stringify({ role }),
+  });
+}
+
+/* ── Permissions matrix ── */
+
+export type PermissionLevel = "todos" | "proprios" | "nenhum";
+
+export interface ObjectPermissions {
+  exibir: PermissionLevel;
+  criar: boolean;
+  editar: PermissionLevel;
+  excluir: PermissionLevel;
+}
+
+export type PermissionsMatrix = Record<string, Record<string, ObjectPermissions>>;
+
+export async function getPermissions(): Promise<PermissionsMatrix | null> {
+  return rootApiFetch<PermissionsMatrix | null>("/permissions");
+}
+
+export async function savePermissions(matrix: PermissionsMatrix): Promise<void> {
+  await rootApiFetch<any>("/permissions", {
+    method: "PUT",
+    body: JSON.stringify(matrix),
   });
 }

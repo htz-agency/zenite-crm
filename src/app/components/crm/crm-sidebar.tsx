@@ -45,6 +45,7 @@ import { AnimatePresence, motion } from "motion/react";
 import { PillButton } from "../pill-button";
 import { useAuth } from "../auth-context";
 import { useCreateLead } from "./create-lead-context";
+import ImportedLogoZeniteCrm from "../../../imports/LogoZeniteCrm";
 
 /* ------------------------------------------------------------------ */
 /*  Types                                                              */
@@ -186,10 +187,11 @@ interface ZeniteModule {
   bg: string;
   color: string;
   route?: string;
+  externalUrl?: string;
 }
 
 const zeniteModules: ZeniteModule[] = [
-  { id: "prc", name: "Price", abbr: "PRC", icon: Invoice, bg: "#DCF0FF", color: "#07ABDE", route: "/price" },
+  { id: "prc", name: "Price", abbr: "PRC", icon: Invoice, bg: "#DCF0FF", color: "#07ABDE", externalUrl: "https://price.htz.agency" },
   { id: "crm", name: "CRM", abbr: "CRM", icon: UsersThree, bg: "#DCF0FF", color: "#0483AB", route: "/crm" },
   { id: "mkt", name: "Marketing", abbr: "MKT", icon: Megaphone, bg: "#FEEDCA", color: "#917822" },
   { id: "syc", name: "Sync", abbr: "SYC", icon: ArrowsClockwise, bg: "#D9F8EF", color: "#3CCEA7" },
@@ -248,23 +250,6 @@ function getPipeActionButton(pathname: string): { label: string; to: string } {
     }
   }
   return DEFAULT_PIPE_ACTION;
-}
-
-/* ------------------------------------------------------------------ */
-/*  Logo Zenite CRM                                                    */
-/* ------------------------------------------------------------------ */
-
-function LogoZeniteCrm() {
-  return (
-    <div className="flex flex-col gap-[1px]">
-      <span style={{ fontSize: 16, fontWeight: 700, letterSpacing: -0.5, color: "#28415C", lineHeight: "18px" }}>
-        Zenite
-      </span>
-      <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: 0.5, color: "#0483AB", textTransform: "uppercase", lineHeight: "14px" }}>
-        CRM
-      </span>
-    </div>
-  );
 }
 
 /* ------------------------------------------------------------------ */
@@ -487,17 +472,17 @@ export function CrmSidebar({ isOpen, onClose }: CrmSidebarProps) {
         <div className="relative" ref={appDrawerRef}>
           <div
             onClick={() => setShowAppDrawer(v => !v)}
-            className={`relative flex items-center justify-center w-10 h-10 rounded-xl cursor-pointer transition-all ${
+            className={`relative flex items-center justify-center h-[32px] rounded-full cursor-pointer transition-all ${
               showAppDrawer
-                ? "bg-[#28415C] text-[#F6F7F9]"
-                : "text-[#4E6987] hover:bg-[#28415C]/10 hover:text-[#28415C]"
+                ? "w-[42px] bg-[#28415C] text-[#F6F7F9] backdrop-blur-[50px]"
+                : "w-[32px] text-[#4E6987] hover:w-[42px] hover:bg-[#28415C]/10 hover:text-[#28415C]"
             }`}
             style={showAppDrawer ? { boxShadow: "0px 2px 4px 0px rgba(18,34,50,0.3)" } : undefined}
           >
             <DotsNine size={20} weight={showAppDrawer ? "fill" : "duotone"} />
             {showAppDrawer && (
               <div
-                className="absolute inset-0 rounded-xl pointer-events-none"
+                className="absolute inset-0 rounded-full pointer-events-none"
                 style={{ border: "0.7px solid rgba(200,207,219,0.6)" }}
               />
             )}
@@ -538,7 +523,9 @@ export function CrmSidebar({ isOpen, onClose }: CrmSidebarProps) {
                             : "hover:bg-[#F6F7F9]"
                         }`}
                         onClick={() => {
-                          if (app.route) {
+                          if (app.externalUrl) {
+                            window.location.href = app.externalUrl;
+                          } else if (app.route) {
                             navigate(app.route);
                             setShowAppDrawer(false);
                           }
@@ -581,7 +568,9 @@ export function CrmSidebar({ isOpen, onClose }: CrmSidebarProps) {
     >
       {/* Panel header with logo */}
       <div className="px-5 py-5">
-        <LogoZeniteCrm />
+        <div className="relative w-[138px] h-[24px]">
+          <ImportedLogoZeniteCrm />
+        </div>
       </div>
 
       {/* Action button */}
@@ -680,11 +669,23 @@ export function CrmSidebar({ isOpen, onClose }: CrmSidebarProps) {
     </div>
   ) : null;
 
+  /* ---- Minimal panel (logo only, for directTo pages like Início) ---- */
+  const minimalPanel = !showPanel ? (
+    <div className="flex flex-col w-[224px] min-w-[224px] h-screen bg-[#F6F7F9] z-10">
+      <div className="px-5 py-5">
+        <div className="relative w-[138px] h-[24px]">
+          <ImportedLogoZeniteCrm />
+        </div>
+      </div>
+    </div>
+  ) : null;
+
   /* ---- Desktop / Mobile rendering ---- */
   const sidebarContent = (
     <div className="flex h-screen">
       {rail}
       {panel}
+      {minimalPanel}
     </div>
   );
 

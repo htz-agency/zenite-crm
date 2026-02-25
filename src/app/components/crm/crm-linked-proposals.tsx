@@ -4,7 +4,6 @@
  */
 
 import { useState, useEffect } from "react";
-import { useNavigate } from "react-router";
 import {
   Invoice,
   ArrowSquareOut,
@@ -41,7 +40,6 @@ interface CrmLinkedProposalsProps {
 }
 
 export function CrmLinkedProposals({ accountId, opportunityId, contactId }: CrmLinkedProposalsProps) {
-  const navigate = useNavigate();
   const [proposals, setProposals] = useState<DbProposal[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -104,7 +102,7 @@ export function CrmLinkedProposals({ accountId, opportunityId, contactId }: CrmL
         return (
           <button
             key={p.id}
-            onClick={() => navigate(`/price/propostas/${p.id}`)}
+            onClick={() => window.open(`https://price.htz.agency/price/propostas/${p.id}`, "_blank")}
             className="flex items-center gap-[12px] px-[12px] py-[10px] rounded-[12px] hover:bg-[#f6f7f9] transition-colors group text-left w-full"
           >
             {/* Icon */}

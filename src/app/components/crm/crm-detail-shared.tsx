@@ -62,9 +62,7 @@ export const activityConfig: Record<Activity["type"], { icon: React.ComponentTyp
 export function VerticalDivider() {
   return (
     <div className="flex h-[20px] items-center justify-center shrink-0 w-[1.5px]">
-      <svg className="block w-[1.5px] h-[20px]" fill="none" viewBox="0 0 1.5 20">
-        <line stroke="#DDE3EC" strokeLinecap="round" strokeWidth="1.5" x1="0.75" y1="0.75" x2="0.75" y2="19.25" />
-      </svg>
+      
     </div>
   );
 }
@@ -168,9 +166,10 @@ export function SectionToggle({
           {title}
         </span>
       </button>
-      <AnimatePresence>
+      <AnimatePresence initial={false}>
         {expanded && (
           <motion.div
+            key={`section-content-${title}`}
             initial={{ height: 0, opacity: 0 }}
             animate={{ height: "auto", opacity: 1 }}
             exit={{ height: 0, opacity: 0 }}

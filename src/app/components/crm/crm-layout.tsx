@@ -9,6 +9,7 @@ import { CrmSearchProvider } from "./crm-search-context";
 import { CrmGlobalSearch } from "./crm-global-search";
 import { CreateLeadProvider, useCreateLead } from "./create-lead-context";
 import { CreateLeadModal } from "./create-lead-modal";
+import { PermissionProvider } from "./permission-context";
 
 const fontFeature = { fontFeatureSettings: "'ss01', 'ss04', 'ss05', 'ss07'" };
 
@@ -124,6 +125,7 @@ export function CrmLayout() {
   const location = useLocation();
 
   return (
+    <PermissionProvider>
     <MultitaskProvider>
     <CrmSearchProvider>
     <CreateLeadProvider>
@@ -163,5 +165,6 @@ export function CrmLayout() {
     </CreateLeadProvider>
     </CrmSearchProvider>
     </MultitaskProvider>
+    </PermissionProvider>
   );
 }

@@ -1,7 +1,7 @@
 
-  # Zenite
+  # Zenite CRM
 
-  This is a code bundle for Zenite. The original project is available at https://www.figma.com/design/bUJGKgHkVnSYqMQwAeUzz0/Zenite.
+  This is a code bundle for Zenite CRM. The original project is available at https://www.figma.com/design/bUJGKgHkVnSYqMQwAeUzz0/Zenite-CRM.
 
   ## Running the code
 

@@ -15,6 +15,7 @@ import { motion, AnimatePresence } from "motion/react";
 import { createLead, generateCrmId } from "./crm-api";
 import { toast } from "sonner";
 import { useCreateLead } from "./create-lead-context";
+import { usePermissions } from "./permission-context";
 
 /* ------------------------------------------------------------------ */
 /*  Shared styles                                                      */
@@ -190,6 +191,8 @@ function FormSelect({
 
 export function CreateLeadModal() {
   const { open, closeModal, notifyCreated } = useCreateLead();
+  const { can, userId } = usePermissions();
+  const canCreateLead = can("leads", "criar");
   const [name, setName] = useState("");
   const [lastName, setLastName] = useState("");
   const [email, setEmail] = useState("");
@@ -242,7 +245,7 @@ export function CreateLeadModal() {
       company: company.trim() || null,
       role: role.trim() || null,
       stage: "novo",
-      owner: "Eu",
+      owner: userId || "Eu",
       qualification_progress: 0,
       last_activity_date: now,
       score: 0,
@@ -265,7 +268,7 @@ export function CreateLeadModal() {
         lastActivityDate: now,
         comments: 0,
         calls: 0,
-        owner: "Eu",
+        owner: userId || "Eu",
         origin: origin || "",
       };
 
@@ -422,9 +425,9 @@ export function CreateLeadModal() {
               </button>
               <button
                 onClick={handleSubmit}
-                disabled={!isValid || saving}
+                disabled={!isValid || saving || !canCreateLead}
                 className={`flex items-center justify-center gap-[6px] h-[38px] px-[20px] rounded-[500px] text-white transition-colors cursor-pointer ${
-                  isValid && !saving
+                  isValid && !saving && canCreateLead
                     ? "bg-[#07ABDE] hover:bg-[#0483AB]"
                     : "bg-[#C8CFDB] cursor-not-allowed"
                 }`}

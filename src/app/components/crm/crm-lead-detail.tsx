@@ -22,7 +22,6 @@ import {
   CircleNotch,
   CheckCircle,
 } from "@phosphor-icons/react";
-import { motion, AnimatePresence } from "motion/react";
 import imgAvatar from "figma:asset/d5fb6bc139a3da5bc43ab0601942a4cf33722fa1.png";
 import { EditableField } from "./editable-field";
 import type { FormulaContext } from "./formula-engine";
@@ -657,12 +656,12 @@ export function CrmLeadDetail() {
             {/* Tags / Etiquetas */}
             <div className="relative hidden lg:block" ref={tagMenuRef}>
               <div className="flex items-center gap-[6px]">
-                {selectedTags.map((tagId) => {
+                {selectedTags.map((tagId, tagIdx) => {
                   const tag = leadTagOptions.find((t) => t.id === tagId);
                   if (!tag) return null;
                   return (
                     <span
-                      key={tag.id}
+                      key={`${tag.id}-${tagIdx}`}
                       className={`inline-flex items-center gap-1.5 px-[10px] h-[32px] rounded-[8px] text-label-sm ${tag.bg} ${tag.text}`}
                       style={fontFeature}
                     >
@@ -827,7 +826,7 @@ export function CrmLeadDetail() {
                   if (sectionFields.length === 0) return null;
                   return (
                     <SectionToggle
-                      key={section.title}
+                      key={`section-${sIdx}-${section.title}`}
                       title={section.title}
                       expanded={openSections[sIdx] ?? true}
                       onToggle={() => toggleSection(sIdx)}
@@ -902,7 +901,7 @@ export function CrmLeadDetail() {
                   if (sectionFields.length === 0) return null;
                   return (
                     <SectionToggle
-                      key={section.title}
+                      key={`section-${sIdx}-${section.title}`}
                       title={section.title}
                       expanded={openSections[sIdx] ?? (sIdx < 2)}
                       onToggle={() => toggleSection(sIdx)}
