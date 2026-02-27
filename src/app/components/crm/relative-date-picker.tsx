@@ -207,7 +207,7 @@ export function RelativeDatePicker({
           <TriggerIcon
             size={filterBar ? 13 : 18}
             weight={hasAnyValue ? "fill" : "regular"}
-            className={hasAnyValue ? "text-white" : "text-[#28415c]"}
+            className={hasAnyValue ? "text-[#DCF0FF]" : "text-[#0483AB]"}
           />
         }
         label={triggerLabel}
@@ -732,18 +732,14 @@ function QuickPickButton({
   onClick: () => void;
   label: string;
 }) {
-  const [hovered, setHovered] = useState(false);
-
   return (
     <button
       onClick={onClick}
-      onMouseEnter={() => setHovered(true)}
-      onMouseLeave={() => setHovered(false)}
-      className="flex items-center gap-[4px] h-[26px] px-[10px] rounded-[500px] transition-all cursor-pointer"
-      style={{
-        backgroundColor: isActive ? "#07abde" : hovered ? "#dcf0ff" : "#f6f7f9",
-        color: isActive ? "#ffffff" : "#4e6987",
-      }}
+      className={`flex items-center gap-[4px] h-[26px] px-[10px] rounded-[500px] transition-all cursor-pointer ${
+        isActive
+          ? "bg-[#07ABDE] text-[#DCF0FF]"
+          : "bg-[#f6f7f9] text-[#0483AB] hover:bg-[#dcf0ff] hover:text-[#0483AB]"
+      }`}
     >
       {isActive && <Check size={10} weight="bold" />}
       <span style={{ fontSize: 11, fontWeight: 600, letterSpacing: -0.2, ...fontFeature }}>

@@ -48,6 +48,7 @@ import {
 } from "./crm-api";
 import { useCrmSearch } from "./crm-search-context";
 import { useCreateLead } from "./create-lead-context";
+import { OwnerCell } from "./owner-cell";
 
 /* ------------------------------------------------------------------ */
 /*  Types                                                              */
@@ -576,8 +577,8 @@ export function CrmLeads() {
   const navigate = useNavigate();
   const { query: globalSearch } = useCrmSearch();
   const { openModal: openCreateLeadModal, registerOnCreated } = useCreateLead();
-  const [leads, setLeads] = useState<Lead[]>(mockLeads);
-  const [loading, setLoading] = useState(false);
+  const [leads, setLeads] = useState<Lead[]>([]);
+  const [loading, setLoading] = useState(true);
   const [viewMode, setViewMode] = useState<"kanban" | "tabela">("kanban");
   const [titleMenuOpen, setTitleMenuOpen] = useState(false);
   const [activeMenu, setActiveMenu] = useState<string | null>(null);
@@ -641,7 +642,9 @@ export function CrmLeads() {
             email: `${l.name.toLowerCase().replace(/ /g, ".")}@example.com`,
           }));
 
-          /* Seed in background — UI already shows mock data */
+          /* Seed in background — show mock data now */
+          setLeads(mockLeads);
+          setLoading(false);
           seedCrmData({
             crm_accounts: accountSeedRows,
             crm_leads: seedRows,
@@ -658,6 +661,9 @@ export function CrmLeads() {
         }));
       } catch (err) {
         console.warn("Could not load leads from server, using local data:", err);
+        setLeads(mockLeads);
+      } finally {
+        if (!cancelled) setLoading(false);
       }
     })();
     return () => { cancelled = true; };
@@ -876,13 +882,13 @@ export function CrmLeads() {
           {/* Right: action buttons */}
           <div className="hidden lg:flex items-center gap-[15px]">
             <div className="flex items-center gap-[10px] bg-[#f6f7f9] rounded-[100px] h-[44px] px-[5px] py-[0px]">
-              <button className="flex items-center justify-center size-[32px] rounded-full hover:bg-[#DCF0FF] active:bg-[#07abde] active:text-[#f6f7f9] transition-colors text-[#28415c]">
+              <button className="flex items-center justify-center size-[32px] rounded-full hover:bg-[#DCF0FF] active:bg-[#07ABDE] active:text-[#DCF0FF] transition-colors text-[#0483AB]">
                 <LinkIcon size={18} />
               </button>
-              <button className="flex items-center justify-center size-[32px] rounded-full hover:bg-[#DCF0FF] active:bg-[#07abde] active:text-[#f6f7f9] transition-colors text-[#28415c]">
+              <button className="flex items-center justify-center size-[32px] rounded-full hover:bg-[#DCF0FF] active:bg-[#07ABDE] active:text-[#DCF0FF] transition-colors text-[#0483AB]">
                 <ArrowSquareDownRight size={18} />
               </button>
-              <button className="flex items-center justify-center size-[32px] rounded-full hover:bg-[#DCF0FF] active:bg-[#07abde] active:text-[#f6f7f9] transition-colors text-[#28415c]">
+              <button className="flex items-center justify-center size-[32px] rounded-full hover:bg-[#DCF0FF] active:bg-[#07ABDE] active:text-[#DCF0FF] transition-colors text-[#0483AB]">
                 <Columns size={18} />
               </button>
             </div>
@@ -965,7 +971,7 @@ export function CrmLeads() {
           {/* + button */}
           <button
             onClick={() => openCreateLeadModal()}
-            className="relative flex items-center justify-center w-[34px] h-[34px] rounded-full bg-[#dcf0ff] text-[#28415c] hover:bg-[#cce7fb] transition-colors cursor-pointer"
+            className="relative flex items-center justify-center w-[34px] h-[34px] rounded-full bg-[#F6F7F9] text-[#0483AB] hover:bg-[#DCF0FF] hover:text-[#0483AB] transition-colors cursor-pointer"
           >
             <Plus size={16} weight="bold" />
           </button>
@@ -991,7 +997,7 @@ export function CrmLeads() {
           {/* Active filter count */}
           {dateFilter && (
             <span
-              className="flex items-center justify-center h-[22px] min-w-[22px] px-[6px] bg-[#07abde] text-white rounded-full"
+              className="flex items-center justify-center h-[22px] min-w-[22px] px-[6px] bg-[#07ABDE] text-[#DCF0FF] rounded-full"
               style={{ fontSize: 10, fontWeight: 700, ...fontFeature }}
             >
               {filteredLeads.length}
@@ -1115,7 +1121,7 @@ export function CrmLeads() {
 
                           {/* Nome do Lead */}
                           <div
-                            className="truncate text-[#07abde]"
+                            className="truncate text-[#0483AB]"
                             style={{ fontSize: 12, fontWeight: 500, letterSpacing: -0.5, ...fontFeature }}
                           >
                             {`${lead.name} ${lead.lastName}`.trim()}
@@ -1146,19 +1152,7 @@ export function CrmLeads() {
                           </div>
 
                           {/* Proprietário */}
-                          <div className="flex items-center gap-[8px] truncate">
-                            <img
-                              alt=""
-                              className="shrink-0 size-[18px] rounded-full object-cover"
-                              src={imgAvatar}
-                            />
-                            <span
-                              className="truncate text-[#07abde]"
-                              style={{ fontSize: 12, fontWeight: 500, letterSpacing: -0.5, ...fontFeature }}
-                            >
-                              {lead.owner}
-                            </span>
-                          </div>
+                          <OwnerCell ownerId={lead.owner} />
 
                           {/* Última Atividade */}
                           <div

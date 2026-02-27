@@ -1,7 +1,7 @@
 /**
  * ZeniteToggle — Global toggle switch component (Figma design system)
  *
- * ON:  #3ccea7 track with color-burn overlay
+ * ON:  #07ABDE track with color-burn overlay
  * OFF: gray track with luminosity + color-burn blend
  * Knob: white, spring-animated, subtle shadow
  * Inner shadow overlay on track for depth
@@ -53,7 +53,7 @@ export function ZeniteToggle({ active, onChange, disabled, title, className = ""
               transition={{ duration: 0.2 }}
               className="absolute inset-0 rounded-[100px]"
             >
-              <div className="absolute bg-[#3ccea7] inset-0 rounded-[100px]" />
+              <div className="absolute bg-[#07ABDE] inset-0 rounded-[100px]" />
               <div className="absolute bg-[rgba(208,208,208,0.5)] inset-0 mix-blend-color-burn rounded-[100px]" />
             </motion.div>
           ) : (

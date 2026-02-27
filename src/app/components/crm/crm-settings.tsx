@@ -477,7 +477,7 @@ function FormulaDetailPanel({
       <div className="px-[20px] py-[14px] border-t border-[#ebedf0] flex gap-[8px]">
         <button
           onClick={onEdit}
-          className="flex-1 flex items-center justify-center gap-[6px] h-[40px] rounded-[500px] bg-[#28415c] text-[#f6f7f9] hover:bg-[#1a2d40] cursor-pointer transition-colors"
+          className="flex-1 flex items-center justify-center gap-[6px] h-[40px] rounded-full bg-[#F6F7F9] text-[#0483AB] hover:bg-[#DCF0FF] hover:text-[#0483AB] cursor-pointer transition-colors"
         >
           <PencilSimple size={14} weight="bold" />
           <span style={{ fontSize: 13, fontWeight: 600, letterSpacing: -0.3, ...fontFeature }}>

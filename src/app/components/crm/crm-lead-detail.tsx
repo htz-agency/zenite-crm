@@ -44,14 +44,19 @@ import { useFieldVisibility } from "./use-field-visibility";
 import {
   fontFeature,
   type Activity,
+  type CallRecord,
   activityConfig,
   VerticalDivider,
   ActionButton,
+  ActionPill,
   ActivityItem,
   SectionToggle,
   StageBar,
   ScoreCard,
+  ActivityFeedPanel,
+  useEntityActivities,
 } from "./crm-detail-shared";
+import { usePermissions } from "./permission-context";
 
 
 /* ------------------------------------------------------------------ */
@@ -168,12 +173,26 @@ const emptyLead: LeadData = {
 };
 
 const mockActivities: Activity[] = [
-  { id: "a1", type: "compromisso", label: "Compromisso", date: "04/01/2024 09:30", group: "FUTURO" },
-  { id: "a2", type: "tarefa", label: "Tarefa", date: "04/01/2024 09:30", group: "JULHO" },
-  { id: "a3", type: "ligacao", label: "Ligação", date: "04/01/2024 09:30", group: "JULHO" },
-  { id: "a4", type: "nota", label: "Nota", date: "04/01/2024 09:30", group: "JULHO" },
-  { id: "a5", type: "mensagem", label: "Mensagem", date: "04/01/2024 09:30", group: "JUNHO" },
-  { id: "a6", type: "email", label: "Email", date: "04/01/2024 09:30", group: "2022" },
+  { id: "a1", type: "compromisso", label: "Compromisso", date: "04/01/2024 09:30", group: "FUTURO", title: "Apresentação Comercial", meetingLink: "meet.google.com/abc-defg-hij", attendees: ["ana@empresa.com", "bruno@empresa.com"] },
+  { id: "a9", type: "compromisso", label: "Compromisso", date: "10/03/2026 15:00", group: "FUTURO", title: "Demo do produto", meetingLink: "zoom.us/j/123456789", attendees: ["carlos@empresa.com"], duration: "45 min", notes: "Preparar ambiente de demonstração" },
+  { id: "a10", type: "compromisso", label: "Compromisso", date: "20/12/2023 10:00", group: "DEZEMBRO", title: "Reunião de qualificação", attendees: ["ana@empresa.com"], duration: "30 min", notes: "Primeiro contato com o lead" },
+  { id: "a11", type: "compromisso", label: "Compromisso", date: "05/11/2023 14:30", group: "NOVEMBRO", title: "Follow-up pós-proposta", meetingLink: "meet.google.com/xyz-abcd-efg", attendees: ["bruno@empresa.com", "cfo@empresa.com"], location: "Sala Virtual 3" },
+  { id: "a2", type: "tarefa", label: "Tarefa", date: "04/01/2024 09:30", group: "JULHO", title: "Enviar proposta comercial", notes: "Incluir desconto de 10% para pagamento à vista" },
+  { id: "a3", type: "ligacao", label: "Ligação", date: "04/01/2024 09:30", group: "JULHO", title: "Follow-up da proposta", duration: "12 minutos e 34 segundos" },
+  { id: "a4", type: "nota", label: "Nota", date: "04/01/2024 09:30", group: "JULHO", notes: "Cliente mencionou interesse no plano Enterprise" },
+  { id: "a7", type: "nota", label: "Nota", date: "28/06/2024 14:15", group: "JUNHO", notes: "Reunião com o time de TI revelou que a infraestrutura atual não suporta a migração prevista para o Q3. O diretor técnico sugeriu um período de transição de 60 dias com suporte dedicado. Também mencionaram a necessidade de integração com o ERP SAP e com o sistema legado de faturamento. O orçamento disponível é de R$ 180k anuais, mas há possibilidade de renegociação caso incluamos treinamento para a equipe interna de 12 pessoas." },
+  { id: "a8", type: "nota", label: "Nota", date: "15/06/2024 10:00", group: "JUNHO", notes: "Concorrente apresentou proposta 15% mais barata. Precisamos reforçar diferenciais de suporte e SLA na próxima reunião." },
+  { id: "a5", type: "mensagem", label: "Mensagem", date: "04/01/2024 09:30", group: "JUNHO", title: "Mensagem de boas-vindas enviada" },
+  { id: "a6", type: "email", label: "Email", date: "04/01/2024 09:30", group: "2022", title: "Proposta comercial v2", attendees: ["cliente@empresa.com"] },
+];
+
+const mockCalls: CallRecord[] = [
+  { id: "c1", phone: "+55 98899-8899", date: "04/07/2023 09:30", avatarUrl: "", direction: "feita", title: "Apresentação do produto", duration: "15 minutos e 53 segundos", notes: "Cliente demonstrou interesse na versão premium" },
+  { id: "c2", phone: "+55 98899-8899", date: "04/07/2023 09:30", avatarUrl: "", direction: "recebida", title: "Dúvida sobre preços", duration: "8 minutos e 12 segundos" },
+  { id: "c3", phone: "+55 98899-8899", date: "04/07/2023 09:30", avatarUrl: "", direction: "perdida" },
+  { id: "c4", phone: "+55 98899-8899", date: "04/07/2023 09:30", avatarUrl: "", direction: "feita", title: "Follow-up da proposta", duration: "22 minutos e 07 segundos", notes: "Lorem ipsum dolor sit amet, consectetur adipiscing elit" },
+  { id: "c5", phone: "+55 98899-8899", date: "04/07/2023 09:30", avatarUrl: "", direction: "recebida", title: "Confirmação de reunião", duration: "3 minutos e 45 segundos" },
+  { id: "c6", phone: "+55 98899-8899", date: "04/07/2023 09:30", avatarUrl: "" },
 ];
 
 /* ─── Lead Tag / Etiqueta config ─── */
@@ -227,6 +246,7 @@ export function CrmLeadDetail() {
   const [leadLoading, setLeadLoading] = useState(true);
   const { customFields, customValues, updateCustomValue } = useCustomFields("lead", id);
   const { isVisible: v, isRequired: rq, getLabel: fl } = useFieldVisibility("lead");
+  const { can } = usePermissions();
 
   /* ─── Load layout config from obj-config ─── */
   const [layoutConfig, setLayoutConfig] = useState<{ title: string; fields: string[] }[] | null>(null);
@@ -365,7 +385,6 @@ export function CrmLeadDetail() {
   // marketingOpen and infoOpen now handled by dynamic openSections state
   const [systemOpen, setSystemOpen] = useState(false);
   const [qualificationOpen, setQualificationOpen] = useState(true);
-  const [activityTab, setActivityTab] = useState<"feed" | "engajamento">("feed");
   const [fieldHistoryEntries, setFieldHistoryEntries] = useState<FieldHistoryEntry[]>([]);
   const [convertModalOpen, setConvertModalOpen] = useState(false);
 
@@ -424,8 +443,9 @@ export function CrmLeadDetail() {
         entity_type: "lead",
         entity_id: lead.id,
         field_name: "stage",
-        current_value: lead.stage,
-        created_at: fiveDaysAgo.toISOString(),
+        old_value: null,
+        new_value: lead.stage,
+        changed_at: fiveDaysAgo.toISOString(),
         changed_by: lead.createdBy,
       });
       setFieldHistoryEntries(
@@ -597,13 +617,11 @@ export function CrmLeadDetail() {
     setOpenSections((prev) => ({ ...prev, [idx]: !(prev[idx] ?? true) }));
   }, []);
 
-  // Group activities by group
-  const groupedActivities: { group: string; items: Activity[] }[] = [];
-  mockActivities.forEach((a) => {
-    const existing = groupedActivities.find((g) => g.group === a.group);
-    if (existing) existing.items.push(a);
-    else groupedActivities.push({ group: a.group, items: [a] });
-  });
+  // Load real activities for this lead (falls back to mock data)
+  const {
+    activities: realActivities,
+    groupedActivities,
+  } = useEntityActivities("lead", id, mockActivities);
 
   if (leadLoading) {
     return (
@@ -727,17 +745,19 @@ export function CrmLeadDetail() {
             )}
 
             {/* Action buttons pill */}
-            <div className="hidden lg:flex items-center gap-[10px] bg-[#f6f7f9] rounded-[100px] h-[44px] px-[5px] py-[0px]">
+            <ActionPill className="hidden lg:flex">
               <button
                 ref={tagBtnRef}
                 onClick={() => setShowTagMenu((v) => !v)}
-                className="flex items-center justify-center size-[32px] rounded-full hover:bg-[#DCF0FF] active:bg-[#07abde] active:text-[#f6f7f9] transition-colors text-[#28415c] cursor-pointer"
+                className="flex items-center justify-center size-[32px] rounded-full bg-transparent text-[#0483AB] hover:bg-[#DCF0FF] hover:text-[#0483AB] transition-colors cursor-pointer"
                 title="Etiquetas"
               >
                 <Tag size={18} weight="bold" />
               </button>
               <ActionButton><ClockCounterClockwise size={18} weight="bold" /></ActionButton>
-              <ActionButton><Trash size={18} weight="bold" /></ActionButton>
+              {can("leads", "excluir", lead.owner) && (
+                <ActionButton><Trash size={18} weight="bold" /></ActionButton>
+              )}
               <ActionButton><LinkIcon size={18} weight="bold" /></ActionButton>
               <ActionButton><CopySimple size={18} weight="bold" /></ActionButton>
               <ActionButton onClick={() => {
@@ -755,12 +775,12 @@ export function CrmLeadDetail() {
               <ActionButton onClick={() => navigate(-1)}>
                 <X size={18} weight="bold" />
               </ActionButton>
-            </div>
+            </ActionPill>
 
             {/* Mobile close */}
             <button
               onClick={() => navigate(-1)}
-              className="lg:hidden flex items-center justify-center size-[32px] rounded-full hover:bg-[#f6f7f9] text-[#28415c] cursor-pointer"
+              className="lg:hidden flex items-center justify-center size-[32px] rounded-full bg-transparent text-[#0483AB] hover:bg-[#DCF0FF] hover:text-[#0483AB] transition-colors cursor-pointer"
             >
               <X size={18} weight="bold" />
             </button>
@@ -780,7 +800,7 @@ export function CrmLeadDetail() {
             <div className="flex items-center gap-[8px] shrink-0 pb-[2px]">
               <button
                 onClick={() => setConvertModalOpen(true)}
-                className="flex items-center justify-center h-[34px] px-[16px] rounded-[500px] bg-[#07ABDE] text-white cursor-pointer hover:bg-[#0483AB] transition-colors whitespace-nowrap"
+                className="flex items-center justify-center h-[34px] px-[16px] rounded-[500px] bg-[#3CCEA7] text-white cursor-pointer hover:bg-[#30B893] transition-colors whitespace-nowrap"
                 style={{ fontSize: 13, fontWeight: 700, letterSpacing: -0.3, ...fontFeature }}
               >
                 Converter Lead
@@ -1145,105 +1165,12 @@ export function CrmLeadDetail() {
 
         {/* ─── RIGHT COLUMN: Activities ─── */}
         <div className="hidden xl:flex flex-col w-[306px] shrink-0 bg-white rounded-[16px] overflow-hidden">
-          {/* Activity Tabs */}
-          <div className="p-[12px] pb-0">
-            <div
-              className="flex gap-[4px] h-[44px] items-center justify-center overflow-hidden p-[4px] rounded-[100px] bg-[#f6f7f9]"
-              style={{
-                boxShadow:
-                  "inset 0px -0.5px 1px 0px rgba(255,255,255,0.3), inset 0px -0.5px 1px 0px rgba(255,255,255,0.25), inset 1px 1.5px 4px 0px rgba(0,0,0,0.08), inset 1px 1.5px 4px 0px rgba(0,0,0,0.1)",
-              }}
-            >
-              {(["feed", "engajamento"] as const).map((tab) => {
-                const isActive = activityTab === tab;
-                return (
-                  <button
-                    key={tab}
-                    onClick={() => setActivityTab(tab)}
-                    className={`flex-1 h-[36px] flex items-center justify-center gap-[3px] rounded-[20px] cursor-pointer transition-all relative ${
-                      isActive ? "bg-[#28415c] backdrop-blur-[50px]" : "hover:bg-white/20"
-                    }`}
-                    style={isActive ? { boxShadow: "0px 2px 4px 0px rgba(18,34,50,0.3)" } : undefined}
-                  >
-                    {isActive && (
-                      <div
-                        aria-hidden="true"
-                        className="absolute inset-0 rounded-[20px] pointer-events-none"
-                        style={{ border: "0.5px solid rgba(200,207,219,0.6)" }}
-                      />
-                    )}
-                    {tab === "feed" && (
-                      <ListBullets size={15} weight={isActive ? "fill" : "duotone"} className={isActive ? "text-[#f6f7f9]" : "text-[#98989d]"} />
-                    )}
-                    {tab === "engajamento" && (
-                      <FunnelSimple size={15} weight={isActive ? "fill" : "duotone"} className={isActive ? "text-[#f6f7f9]" : "text-[#98989d]"} />
-                    )}
-                    <span
-                      className={`uppercase ${isActive ? "text-[#f6f7f9]" : "text-[#98989d]"}`}
-                      style={{ fontSize: 10, fontWeight: 700, letterSpacing: 0.5, lineHeight: "20px", ...fontFeature }}
-                    >
-                      {tab}
-                    </span>
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-
-          {/* Activity Header */}
-          <div className="flex items-center gap-[6px] px-[20px] py-[12px]">
-            <div className="flex items-center gap-[6px] flex-1 min-w-0 cursor-pointer">
-              <div className="flex items-center justify-center size-[28px] rounded-[8px] bg-[#dde3ec] shrink-0">
-                <ListBullets size={17} weight="duotone" className="text-[#4e6987]" />
-              </div>
-              <span
-                className="text-[#4e6987]"
-                style={{ fontSize: 18, fontWeight: 500, letterSpacing: -0.5, lineHeight: "22px", ...fontFeature }}
-              >
-                Atividades
-              </span>
-              <CaretDown size={14} weight="bold" className="text-[#4e6987] shrink-0" />
-            </div>
-            <button className="flex items-center justify-center size-[28px] rounded-full text-[#28415c] hover:bg-[#f6f7f9] transition-colors cursor-pointer">
-              <FunnelSimple size={17} weight="duotone" />
-            </button>
-            <button className="flex items-center justify-center size-[28px] rounded-full text-[#28415c] hover:bg-[#f6f7f9] transition-colors cursor-pointer">
-              <GearSix size={17} weight="duotone" />
-            </button>
-          </div>
-
-          {/* Activity List */}
-          <div className="flex-1 overflow-auto px-[4px]">
-            <div className="flex flex-col gap-[4px] items-center">
-              {groupedActivities.map((group) => (
-                <div key={group.group} className="w-full flex flex-col gap-[4px] items-center">
-                  <span
-                    className="text-[#64676c] uppercase text-center"
-                    style={{ fontSize: 10, fontWeight: 700, letterSpacing: 0.5, lineHeight: "20px", ...fontFeature }}
-                  >
-                    {group.group}
-                  </span>
-                  {group.items.map((a) => (
-                    <ActivityItem key={a.id} activity={a} />
-                  ))}
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {/* Add Activity Button */}
-          <div className="p-[16px] flex justify-center">
-            <button
-              className="flex items-center justify-center gap-[4px] h-[40px] px-[20px] rounded-[500px] bg-[#DCF0FF] text-[#28415c] cursor-pointer hover:bg-[#c4e4fa] transition-colors"
-            >
-              <Plus size={16} weight="bold" />
-              <span
-                style={{ fontSize: 15, fontWeight: 500, letterSpacing: -0.5, lineHeight: "22px", ...fontFeature }}
-              >
-                Adicionar atividade
-              </span>
-            </button>
-          </div>
+          <ActivityFeedPanel
+            activities={realActivities}
+            groupedActivities={groupedActivities}
+            layoutId="lead-activity-tab"
+            calls={mockCalls}
+          />
         </div>
       </div>
 

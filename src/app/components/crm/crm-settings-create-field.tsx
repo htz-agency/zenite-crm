@@ -14,6 +14,7 @@ import {
   OPPORTUNITY_FIELDS,
   CONTACT_FIELDS,
   ACCOUNT_FIELDS,
+  ACTIVITY_FIELDS,
   type NativeField,
 } from "./crm-settings-native-fields";
 import { motion, AnimatePresence } from "motion/react";
@@ -53,6 +54,7 @@ import {
   Warning,
   Code,
   ArrowRight,
+  X,
 } from "@phosphor-icons/react";
 import { ZeniteToggle } from "../zenite-toggle";
 import { FormulaBuilder } from "./formula-builder";
@@ -90,7 +92,7 @@ type FieldType =
   | "currency" | "duration" | "association" | "address" | "type" | "multipicklist" | "combobox"
   | "contextual" | "calculated" | "id";
 
-type ObjectType = "lead" | "oportunidade" | "contato" | "conta";
+type ObjectType = "lead" | "oportunidade" | "contato" | "conta" | "atividade";
 
 const FIELD_TYPE_META: Record<FieldType, { label: string; color: string; bg: string; icon: React.ComponentType<any>; desc: string }> = {
   text:          { label: "Texto",          color: "#4e6987", bg: "#f0f2f5", icon: TextT,          desc: "Campo de texto simples com limite de caracteres" },
@@ -108,8 +110,8 @@ const FIELD_TYPE_META: Record<FieldType, { label: string; color: string; bg: str
   currency:      { label: "Moeda",          color: "#3ccea7", bg: "#d9f8ef", icon: CurrencyDollar, desc: "Valor monetário com símbolo e formato" },
   duration:      { label: "Duração",        color: "#eac23d", bg: "#feedca", icon: Timer,          desc: "Tempo em minutos, horas ou dias" },
   address:       { label: "Endereço",       color: "#4e6987", bg: "#f0f2f5", icon: MapPin,         desc: "Endereço completo com sub-campos" },
-  type:          { label: "Etiqueta",       color: "#ff8c76", bg: "#ffedeb", icon: Tag,            desc: "Lista de opções com seleção única" },
-  multipicklist: { label: "Multi-seleção",  color: "#ff8c76", bg: "#ffedeb", icon: ListBullets,    desc: "Lista de opções com seleção múltipla" },
+  type:          { label: "Lista",          color: "#ff8c76", bg: "#ffedeb", icon: ListBullets,    desc: "Lista de opções com seleção única" },
+  multipicklist: { label: "Multi-seleção",  color: "#ff8c76", bg: "#ffedeb", icon: Tag,            desc: "Lista de opções com seleção múltipla" },
   combobox:      { label: "Combobox",       color: "#ff8c76", bg: "#ffedeb", icon: CaretCircleUpDown, desc: "Dropdown com busca e texto livre opcional" },
   association:   { label: "Associação",     color: "#07abde", bg: "#dcf0ff", icon: TreeStructure,  desc: "Referência a outro objeto do CRM" },
   contextual:    { label: "Contextual",     color: "#8C8CD4", bg: "#e8e8fd", icon: Shapes,        desc: "Opções dinâmicas baseadas no contexto lógico do registro" },
@@ -122,6 +124,7 @@ const OBJECT_INFO: Record<ObjectType, { label: string; color: string; bg: string
   oportunidade:  { label: "Oportunidade",  color: "#07abde", bg: "#dcf0ff" },
   contato:       { label: "Contato",       color: "#8c8cd4", bg: "#e8e8fd" },
   conta:         { label: "Conta",         color: "#3eb370", bg: "#d4f5e2" },
+  atividade:     { label: "Atividade",    color: "#ff8c76", bg: "#ffedeb" },
 };
 
 const ORDERED_TYPES: FieldType[] = [
@@ -294,40 +297,44 @@ function labelToSnake(label: string): string {
 /* ================================================================== */
 
 function FieldInput({
-  label, required, value, onChange, placeholder, mono, icon, disabled, type = "text",
+  label, required, value, onChange, placeholder, mono, icon, disabled, type = "text", error, errorMsg,
 }: {
   label: string; required?: boolean; value: string; onChange: (v: string) => void;
   placeholder?: string; mono?: boolean; icon?: React.ReactNode; disabled?: boolean; type?: string;
+  error?: boolean; errorMsg?: string;
 }) {
   return (
     <div className="flex flex-col gap-[6px]">
       <label
-        className="text-[#4e6987]"
-        style={{ fontSize: 11, fontWeight: 700, letterSpacing: 0.4, textTransform: "uppercase", ...ff }}
+        style={{ fontSize: 11, fontWeight: 700, letterSpacing: 0.4, textTransform: "uppercase" as const, color: error ? "#f56233" : "#4e6987", ...ff }}
       >
         {label} {required && <span className="text-[#ff8c76]">*</span>}
       </label>
       <div className="relative flex items-center">
-        {icon && <div className="absolute left-[12px] text-[#98989d]">{icon}</div>}
+        {icon && <div className="absolute left-[12px]" style={{ color: error ? "#f56233" : "#98989d" }}>{icon}</div>}
         <input
           type={type}
           value={value}
           onChange={(e) => onChange(e.target.value)}
           placeholder={placeholder}
           disabled={disabled}
-          className={`w-full h-[40px] px-[14px] rounded-[10px] bg-[#f6f7f9] text-[#28415c] placeholder:text-[#c8cfdb] outline-none transition-all focus:ring-2 focus:ring-[#07abde]/30 disabled:opacity-50 disabled:cursor-not-allowed ${
+          className={`w-full h-[40px] px-[14px] rounded-[10px] text-[#28415c] placeholder:text-[#c8cfdb] outline-none transition-all disabled:opacity-50 disabled:cursor-not-allowed ${
             icon ? "pl-[36px]" : ""
           } ${mono ? "font-mono" : ""}`}
           style={{
             fontSize: mono ? 13 : 14,
             fontWeight: 500,
             letterSpacing: mono ? 0 : -0.3,
-            border: "1px solid rgba(200,207,219,0.6)",
+            border: error ? "1.5px solid #f56233" : "1px solid rgba(200,207,219,0.6)",
+            backgroundColor: error ? "#ffedeb" : "#f6f7f9",
             fontFamily: mono ? "'DM Mono', monospace" : undefined,
             ...ff,
           }}
         />
       </div>
+      {error && errorMsg && (
+        <span style={{ fontSize: 11, fontWeight: 500, letterSpacing: -0.2, color: "#f56233", ...ff }}>{errorMsg}</span>
+      )}
     </div>
   );
 }
@@ -370,16 +377,16 @@ function NumberInput({
 /* ================================================================== */
 
 function FieldSelect({
-  label, value, onChange, options,
+  label, value, onChange, options, error,
 }: {
   label: string; value: string; onChange: (v: string) => void;
   options: { value: string; label: string }[];
+  error?: boolean;
 }) {
   return (
     <div className="flex flex-col gap-[6px]">
       <label
-        className="text-[#4e6987]"
-        style={{ fontSize: 11, fontWeight: 700, letterSpacing: 0.4, textTransform: "uppercase", ...ff }}
+        style={{ fontSize: 11, fontWeight: 700, letterSpacing: 0.4, textTransform: "uppercase" as const, color: error ? "#f56233" : "#4e6987", ...ff }}
       >
         {label}
       </label>
@@ -387,14 +394,19 @@ function FieldSelect({
         <select
           value={value}
           onChange={(e) => onChange(e.target.value)}
-          className="w-full h-[40px] px-[14px] pr-[36px] rounded-[10px] bg-[#f6f7f9] text-[#28415c] outline-none appearance-none cursor-pointer transition-all focus:ring-2 focus:ring-[#07abde]/30"
-          style={{ fontSize: 14, fontWeight: 500, letterSpacing: -0.3, border: "1px solid rgba(200,207,219,0.6)", ...ff }}
+          className="w-full h-[40px] px-[14px] pr-[36px] rounded-[10px] text-[#28415c] outline-none appearance-none cursor-pointer transition-all"
+          style={{
+            fontSize: 14, fontWeight: 500, letterSpacing: -0.3,
+            border: error ? "1.5px solid #f56233" : "1px solid rgba(200,207,219,0.6)",
+            backgroundColor: error ? "#ffedeb" : "#f6f7f9",
+            ...ff,
+          }}
         >
           {options.map((o) => (
             <option key={o.value} value={o.value}>{o.label}</option>
           ))}
         </select>
-        <CaretDown size={14} weight="bold" className="absolute right-[12px] top-1/2 -translate-y-1/2 text-[#98989d] pointer-events-none" />
+        <CaretDown size={14} weight="bold" className="absolute right-[12px] top-1/2 -translate-y-1/2 pointer-events-none" style={{ color: error ? "#f56233" : "#98989d" }} />
       </div>
     </div>
   );
@@ -527,7 +539,7 @@ function OptionsEditor({
 
       <button
         onClick={addOption}
-        className="flex items-center gap-[8px] h-[36px] px-[12px] rounded-[8px] text-[#07abde] hover:bg-[#dcf0ff]/50 transition-colors cursor-pointer w-fit"
+        className="flex items-center gap-[8px] h-[36px] px-[12px] rounded-full bg-[#F6F7F9] text-[#0483AB] hover:bg-[#DCF0FF] hover:text-[#0483AB] transition-colors cursor-pointer w-fit"
       >
         <Plus size={14} weight="bold" />
         <span style={{ fontSize: 13, fontWeight: 600, letterSpacing: -0.3, ...ff }}>Adicionar opção</span>
@@ -578,6 +590,34 @@ interface TypeConfig {
   contextConditionOperator?: string;
   contextConditionValue?: string;
   contextDisplayField?: string;
+  // Contextual multiple conditions with AND/OR (legacy flat list)
+  contextConditions?: {
+    id: string;
+    field: string;
+    operator: string;
+    value: string;
+    connector: "and" | "or";
+  }[];
+  // Contextual nested condition groups: (A E B) OU (C E D)
+  contextConditionGroups?: {
+    id: string;
+    connector: "and" | "or"; // connector BEFORE this group (ignored for first)
+    conditions: {
+      id: string;
+      field: string;
+      operator: string;
+      value: string;
+      connector: "and" | "or"; // connector BEFORE this condition within group (ignored for first)
+    }[];
+  }[];
+  // Contextual status groups (activity status)
+  contextualGroups?: {
+    type: string;
+    label: string;
+    color: string;
+    bg: string;
+    statuses: { key: string; label: string; color: string; bg: string }[];
+  }[];
   // Calculated
   formula?: string;
   formulaOutputType?: string;
@@ -594,6 +634,712 @@ const ALL_ADDRESS_SUBFIELDS = [
   { key: "zip", label: "CEP" },
   { key: "country", label: "País" },
 ];
+
+/* ================================================================== */
+/*  Activity Status — Contextual Panel (grouped by activity type)      */
+/* ================================================================== */
+
+const ACTIVITY_STATUS_BY_TYPE: { type: string; label: string; color: string; bg: string; statuses: { key: string; label: string; color: string; bg: string }[] }[] = [
+  { type: "compromisso", label: "Compromisso", color: "#FF8C76", bg: "#FFEDEB", statuses: [
+    { key: "agendado",     label: "Agendado",     color: "#07abde", bg: "#dcf0ff" },
+    { key: "confirmado",   label: "Confirmado",   color: "#3ccea7", bg: "#d9f8ef" },
+    { key: "em_andamento", label: "Em Andamento", color: "#eac23d", bg: "#feedca" },
+    { key: "concluido",    label: "Concluído",    color: "#3eb370", bg: "#d9f8ef" },
+    { key: "cancelado",    label: "Cancelado",    color: "#ff8c76", bg: "#ffedeb" },
+  ]},
+  { type: "tarefa", label: "Tarefa", color: "#8C8CD4", bg: "#E8E8FD", statuses: [
+    { key: "nao_iniciada", label: "Não Iniciada", color: "#98989d", bg: "#f0f2f5" },
+    { key: "em_andamento", label: "Em Andamento", color: "#eac23d", bg: "#feedca" },
+    { key: "aguardando",   label: "Aguardando",   color: "#8c8cd4", bg: "#e8e8fd" },
+    { key: "concluida",    label: "Concluída",    color: "#3eb370", bg: "#d9f8ef" },
+    { key: "cancelada",    label: "Cancelada",    color: "#ff8c76", bg: "#ffedeb" },
+  ]},
+  { type: "ligacao", label: "Ligação", color: "#3CCEA7", bg: "#D9F8EF", statuses: [
+    { key: "agendado",      label: "Agendado",      color: "#07abde", bg: "#dcf0ff" },
+    { key: "em_andamento",  label: "Em Andamento",  color: "#eac23d", bg: "#feedca" },
+    { key: "concluido",     label: "Concluído",     color: "#3eb370", bg: "#d9f8ef" },
+    { key: "nao_atendida",  label: "Não Atendida",  color: "#f56233", bg: "#ffedeb" },
+    { key: "cancelado",     label: "Cancelado",     color: "#ff8c76", bg: "#ffedeb" },
+  ]},
+  { type: "nota", label: "Nota", color: "#EAC23D", bg: "#FEEDCA", statuses: [
+    { key: "rascunho",  label: "Rascunho",  color: "#98989d", bg: "#f0f2f5" },
+    { key: "publicada", label: "Publicada", color: "#3ccea7", bg: "#d9f8ef" },
+  ]},
+  { type: "mensagem", label: "Mensagem", color: "#07ABDE", bg: "#DCF0FF", statuses: [
+    { key: "rascunho", label: "Rascunho", color: "#98989d", bg: "#f0f2f5" },
+    { key: "enviada",  label: "Enviada",  color: "#07abde", bg: "#dcf0ff" },
+    { key: "entregue", label: "Entregue", color: "#3eb370", bg: "#d9f8ef" },
+    { key: "lida",     label: "Lida",     color: "#8c8cd4", bg: "#e8e8fd" },
+    { key: "falha",    label: "Falha",    color: "#f56233", bg: "#ffedeb" },
+  ]},
+  { type: "email", label: "Email", color: "#4E6987", bg: "#DDE3EC", statuses: [
+    { key: "rascunho", label: "Rascunho", color: "#98989d", bg: "#f0f2f5" },
+    { key: "enviada",  label: "Enviada",  color: "#07abde", bg: "#dcf0ff" },
+    { key: "entregue", label: "Entregue", color: "#3eb370", bg: "#d9f8ef" },
+    { key: "lida",     label: "Lida",     color: "#8c8cd4", bg: "#e8e8fd" },
+    { key: "falha",    label: "Falha",    color: "#f56233", bg: "#ffedeb" },
+  ]},
+];
+
+/** Derive a light background from a status color using the HTZ palette */
+const COLOR_TO_BG: Record<string, string> = {
+  "#dcf0ff": "#dcf0ff", "#73d0ff": "#dcf0ff", "#07abde": "#dcf0ff", "#0483ab": "#dcf0ff", "#025e7b": "#dcf0ff", "#013b4f": "#dcf0ff",
+  "#d9f8ef": "#d9f8ef", "#4bfacb": "#d9f8ef", "#23e6b2": "#d9f8ef", "#3ccea7": "#d9f8ef", "#3eb370": "#d9f8ef", "#135543": "#d9f8ef", "#083226": "#d9f8ef",
+  "#ffedeb": "#ffedeb", "#ffc6be": "#ffedeb", "#ff8c76": "#ffedeb", "#ed5200": "#ffedeb", "#b13b00": "#ffedeb", "#782500": "#ffedeb", "#f56233": "#ffedeb", "#e85d75": "#ffedeb",
+  "#feedca": "#feedca", "#f5da82": "#feedca", "#eac23d": "#feedca", "#917822": "#feedca", "#685516": "#feedca", "#42350a": "#feedca", "#f5a623": "#feedca", "#c4990d": "#feedca",
+  "#e8e8fd": "#e8e8fd", "#b0b0d6": "#e8e8fd", "#8c8cd4": "#e8e8fd", "#6868b1": "#e8e8fd", "#4e4e91": "#e8e8fd", "#31315c": "#e8e8fd",
+  "#ffffff": "#f6f7f9", "#f6f7f9": "#f6f7f9", "#c8cfdb": "#f0f2f5", "#dde3ec": "#f0f2f5", "#4e6987": "#dde3ec", "#28415c": "#dde3ec", "#122232": "#dde3ec",
+  "#98989d": "#f0f2f5", "#f0f2f5": "#f0f2f5", "#6c5ce7": "#e8e8fd",
+};
+function deriveBg(color: string): string {
+  return COLOR_TO_BG[color.toLowerCase()] ?? color + "18";
+}
+
+function ActivityStatusContextualPanel({
+  config,
+  onChange,
+}: {
+  config: TypeConfig;
+  onChange: (c: TypeConfig) => void;
+}) {
+  // Use stored groups or default to ACTIVITY_STATUS_BY_TYPE
+  const groups = config.contextualGroups ?? ACTIVITY_STATUS_BY_TYPE;
+
+  const updateGroups = (next: typeof groups) => {
+    onChange({ ...config, contextualGroups: next });
+  };
+
+  const addStatus = (groupIdx: number) => {
+    const next = groups.map((g, gi) => {
+      if (gi !== groupIdx) return g;
+      const key = `status_${Date.now()}_${Math.random().toString(36).slice(2, 5)}`;
+      return {
+        ...g,
+        statuses: [...g.statuses, { key, label: "", color: OPTION_COLORS[g.statuses.length % OPTION_COLORS.length], bg: deriveBg(OPTION_COLORS[g.statuses.length % OPTION_COLORS.length]) }],
+      };
+    });
+    updateGroups(next);
+  };
+
+  const removeStatus = (groupIdx: number, statusIdx: number) => {
+    const next = groups.map((g, gi) => {
+      if (gi !== groupIdx) return g;
+      return { ...g, statuses: g.statuses.filter((_, si) => si !== statusIdx) };
+    });
+    updateGroups(next);
+  };
+
+  const updateStatusLabel = (groupIdx: number, statusIdx: number, label: string) => {
+    const next = groups.map((g, gi) => {
+      if (gi !== groupIdx) return g;
+      return {
+        ...g,
+        statuses: g.statuses.map((s, si) => {
+          if (si !== statusIdx) return s;
+          const newKey = label.trim().toLowerCase().replace(/\s+/g, "_").replace(/[^a-z0-9_]/g, "") || s.key;
+          return { ...s, label, key: newKey };
+        }),
+      };
+    });
+    updateGroups(next);
+  };
+
+  const updateStatusColor = (groupIdx: number, statusIdx: number, color: string) => {
+    const bg = deriveBg(color);
+    const next = groups.map((g, gi) => {
+      if (gi !== groupIdx) return g;
+      return { ...g, statuses: g.statuses.map((s, si) => si === statusIdx ? { ...s, color, bg } : s) };
+    });
+    updateGroups(next);
+  };
+
+  const totalUnique = new Set(groups.flatMap((g) => g.statuses.map((s) => s.key))).size;
+
+  return (
+    <div className="flex flex-col gap-[20px]">
+      {/* Explanation */}
+      <div className="flex items-start gap-[12px] px-[14px] py-[12px] rounded-[10px] bg-[#e8e8fd]/60" style={{ border: "1px solid rgba(140,140,212,0.2)" }}>
+        <Lightning size={16} weight="duotone" className="text-[#8C8CD4] shrink-0 mt-[2px]" />
+        <div className="flex flex-col gap-[4px]">
+          <span className="text-[#28415c]" style={{ fontSize: 13, fontWeight: 600, letterSpacing: -0.3, ...ff }}>
+            Campo Contextual por Tipo de Atividade
+          </span>
+          <span className="text-[#4e6987]" style={{ fontSize: 12, fontWeight: 500, letterSpacing: -0.2, lineHeight: "18px", ...ff }}>
+            As opções de status mudam automaticamente conforme o tipo da atividade. Adicione, edite ou remova status dentro de cada grupo.
+          </span>
+        </div>
+      </div>
+
+      {/* Activity type groups */}
+      <div className="flex flex-col gap-[16px]">
+        {groups.map((group, gi) => (
+          <div key={group.type} className="flex flex-col gap-[6px]">
+            {/* Activity type header */}
+            <div className="flex items-center gap-[8px]">
+              <div
+                className="flex items-center justify-center size-[22px] rounded-[6px]"
+                style={{ backgroundColor: group.bg }}
+              >
+                <div className="size-[8px] rounded-full" style={{ backgroundColor: group.color }} />
+              </div>
+              <span
+                className="text-[#28415c] uppercase"
+                style={{ fontSize: 10, fontWeight: 700, letterSpacing: 0.4, ...ff }}
+              >
+                {group.label}
+              </span>
+              <span
+                className="text-[#98989d]"
+                style={{ fontSize: 10, fontWeight: 500, letterSpacing: -0.2, ...ff }}
+              >
+                {group.statuses.length} status
+              </span>
+            </div>
+
+            {/* Editable status rows */}
+            <div className="flex flex-col gap-[4px] pl-[30px]">
+              {group.statuses.map((s, si) => (
+                <div
+                  key={s.key}
+                  className="group/st flex items-center gap-[8px] h-[36px] px-[8px] rounded-[8px] bg-[#f6f7f9] hover:bg-[#eef0f4] transition-colors"
+                >
+                  {/* Order number */}
+                  <span
+                    className="text-[#98989d] shrink-0 w-[18px] text-center"
+                    style={{ fontSize: 10, fontWeight: 700, ...ff }}
+                  >
+                    {si + 1}
+                  </span>
+
+                  {/* Color dot + picker */}
+                  <div className="relative shrink-0">
+                    <PaletteColorPicker
+                      value={s.color}
+                      onChange={(c) => updateStatusColor(gi, si, c)}
+                    />
+                    <div
+                      className="size-[16px] rounded-full border-2 border-white shrink-0 cursor-pointer"
+                      style={{ backgroundColor: s.color, boxShadow: "0px 1px 2px rgba(0,0,0,0.15)" }}
+                    />
+                  </div>
+
+                  {/* Label input */}
+                  <input
+                    type="text"
+                    value={s.label}
+                    onChange={(e) => updateStatusLabel(gi, si, e.target.value)}
+                    placeholder={`Status ${si + 1}`}
+                    className="flex-1 min-w-0 bg-transparent text-[#28415c] placeholder:text-[#c8cfdb] outline-none"
+                    style={{ fontSize: 12, fontWeight: 500, letterSpacing: -0.3, ...ff }}
+                  />
+
+                  {/* Preview pill */}
+                  {s.label && (
+                    <span
+                      className="inline-flex items-center h-[20px] px-[8px] rounded-[500px] uppercase shrink-0"
+                      style={{ fontSize: 9, fontWeight: 700, letterSpacing: 0.3, color: s.color, backgroundColor: s.bg, ...ff }}
+                    >
+                      {s.label}
+                    </span>
+                  )}
+
+                  {/* Remove */}
+                  <button
+                    onClick={() => removeStatus(gi, si)}
+                    className="shrink-0 text-[#c8cfdb] hover:text-[#e85d75] opacity-0 group-hover/st:opacity-100 transition-all cursor-pointer"
+                  >
+                    <Trash size={13} weight="bold" />
+                  </button>
+                </div>
+              ))}
+            </div>
+
+            {/* Add status button */}
+            <div className="pl-[30px] mt-[2px]">
+              <button
+                onClick={() => addStatus(gi)}
+                className="flex items-center gap-[6px] h-[28px] px-[10px] rounded-full bg-transparent text-[#0483AB] hover:bg-[#DCF0FF] transition-colors cursor-pointer w-fit"
+              >
+                <Plus size={12} weight="bold" />
+                <span style={{ fontSize: 11, fontWeight: 600, letterSpacing: -0.2, ...ff }}>Adicionar status</span>
+              </button>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* Total summary */}
+      <div
+        className="flex items-center justify-between px-[14px] py-[10px] rounded-[8px] bg-[#f6f7f9]"
+        style={{ border: "1px solid rgba(200,207,219,0.3)" }}
+      >
+        <span className="text-[#4e6987]" style={{ fontSize: 11, fontWeight: 600, letterSpacing: -0.2, ...ff }}>
+          Total de status únicos
+        </span>
+        <span className="text-[#28415c]" style={{ fontSize: 13, fontWeight: 700, letterSpacing: -0.3, ...ff }}>
+          {totalUnique}
+        </span>
+      </div>
+    </div>
+  );
+}
+
+/* ================================================================== */
+/*  Contextual Condition Builder — nested groups with AND/OR           */
+/* ================================================================== */
+
+type ConditionItem = { id: string; field: string; operator: string; value: string; connector: "and" | "or" };
+type ConditionGroup = { id: string; connector: "and" | "or"; conditions: ConditionItem[] };
+
+const CONDITION_OPERATORS = [
+  { value: "equals", label: "Igual a" },
+  { value: "not_equals", label: "Diferente de" },
+  { value: "contains", label: "Contém" },
+  { value: "not_empty", label: "Não está vazio" },
+  { value: "is_empty", label: "Está vazio" },
+  { value: "greater_than", label: "Maior que" },
+  { value: "less_than", label: "Menor que" },
+];
+const SOURCE_OBJECTS = [
+  { value: "", label: "Selecione o objeto fonte..." },
+  { value: "lead", label: "Lead" },
+  { value: "oportunidade", label: "Oportunidade" },
+  { value: "contato", label: "Contato" },
+  { value: "conta", label: "Conta" },
+];
+const condNeedsValue = (op: string) => !["not_empty", "is_empty"].includes(op);
+const uid = () => `${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
+const isCondIncomplete = (c: ConditionItem) => !c.field.trim() || (condNeedsValue(c.operator) && !c.value.trim());
+
+function ContextualConditionBuilder({
+  config,
+  update,
+}: {
+  config: TypeConfig;
+  update: (partial: Partial<TypeConfig>) => void;
+}) {
+  // Track whether user attempted save (to show validation)
+  const [showValidation, setShowValidation] = useState(false);
+
+  /* ─── Migrate legacy formats → nested groups ─── */
+  const groups: ConditionGroup[] = (() => {
+    if (config.contextConditionGroups?.length) return config.contextConditionGroups;
+    // Migrate flat conditions → single group
+    if (config.contextConditions?.length) {
+      return [{ id: "grp_migrated", connector: "and" as const, conditions: config.contextConditions }];
+    }
+    // Migrate single legacy condition
+    if (config.contextConditionField) {
+      return [{
+        id: "grp_legacy",
+        connector: "and" as const,
+        conditions: [{ id: "cond_legacy", field: config.contextConditionField, operator: config.contextConditionOperator ?? "equals", value: config.contextConditionValue ?? "", connector: "and" as const }],
+      }];
+    }
+    return [];
+  })();
+
+  const updateGroups = (next: ConditionGroup[]) => {
+    update({ contextConditionGroups: next });
+  };
+
+  /* ─── Group operations ─── */
+  const addGroup = () => {
+    updateGroups([
+      ...groups,
+      { id: `grp_${uid()}`, connector: groups.length > 0 ? "or" : "and", conditions: [{ id: `cond_${uid()}`, field: "", operator: "equals", value: "", connector: "and" }] },
+    ]);
+  };
+
+  const removeGroup = (gi: number) => {
+    updateGroups(groups.filter((_, i) => i !== gi));
+  };
+
+  const toggleGroupConnector = (gi: number) => {
+    updateGroups(groups.map((g, i) => i === gi ? { ...g, connector: g.connector === "and" ? "or" : "and" } : g));
+  };
+
+  /* ─── Condition operations within a group ─── */
+  const addCondToGroup = (gi: number) => {
+    updateGroups(groups.map((g, i) =>
+      i === gi ? { ...g, conditions: [...g.conditions, { id: `cond_${uid()}`, field: "", operator: "equals", value: "", connector: "and" }] } : g
+    ));
+  };
+
+  const removeCondFromGroup = (gi: number, ci: number) => {
+    const next = groups.map((g, i) => {
+      if (i !== gi) return g;
+      const filtered = g.conditions.filter((_, j) => j !== ci);
+      return { ...g, conditions: filtered };
+    }).filter((g) => g.conditions.length > 0); // remove empty groups
+    updateGroups(next);
+  };
+
+  const updateCond = (gi: number, ci: number, patch: Partial<ConditionItem>) => {
+    updateGroups(groups.map((g, i) =>
+      i === gi ? { ...g, conditions: g.conditions.map((c, j) => j === ci ? { ...c, ...patch } : c) } : g
+    ));
+  };
+
+  const toggleCondConnector = (gi: number, ci: number) => {
+    updateCond(gi, ci, { connector: groups[gi].conditions[ci].connector === "and" ? "or" : "and" });
+  };
+
+  /* ─── Validation ─── */
+  const totalConditions = groups.reduce((sum, g) => sum + g.conditions.length, 0);
+  const hasIncomplete = groups.some((g) => g.conditions.some(isCondIncomplete));
+  const incompleteCount = groups.reduce((sum, g) => sum + g.conditions.filter(isCondIncomplete).length, 0);
+
+  return (
+    <div className="flex flex-col gap-[20px]">
+      {/* Explanation */}
+      <div className="flex items-start gap-[12px] px-[14px] py-[12px] rounded-[10px] bg-[#e8e8fd]/60" style={{ border: "1px solid rgba(140,140,212,0.2)" }}>
+        <Lightning size={16} weight="duotone" className="text-[#8C8CD4] shrink-0 mt-[2px]" />
+        <div className="flex flex-col gap-[4px]">
+          <span className="text-[#28415c]" style={{ fontSize: 13, fontWeight: 600, letterSpacing: -0.3, ...ff }}>
+            Como funciona
+          </span>
+          <span className="text-[#4e6987]" style={{ fontSize: 12, fontWeight: 500, letterSpacing: -0.2, lineHeight: "18px", ...ff }}>
+            O campo contextual busca opções de outro objeto do CRM. Crie <strong>grupos</strong> de condições: dentro de cada grupo as condições são conectadas por <strong>E</strong> ou <strong>OU</strong>, e os grupos entre si são conectados por <strong>E</strong> ou <strong>OU</strong> — formando expressões como <span style={{ fontFamily: "'DM Mono', monospace", fontSize: 11, color: "#8c8cd4" }}>(A E B) OU (C E D)</span>.
+          </span>
+        </div>
+      </div>
+
+      {/* Source Object */}
+      <FieldSelect
+        label="Objeto Fonte"
+        value={config.contextSourceObject ?? ""}
+        onChange={(v) => update({ contextSourceObject: v })}
+        options={SOURCE_OBJECTS}
+      />
+
+      {/* Source display field */}
+      <FieldInput
+        label="Campo a Exibir"
+        value={config.contextDisplayField ?? ""}
+        onChange={(v) => update({ contextDisplayField: v })}
+        placeholder="Ex: nome, email, razao_social"
+      />
+
+      <HorizontalDivider />
+
+      {/* Conditions header */}
+      <div className="flex flex-col gap-[6px]">
+        <div className="flex items-center justify-between">
+          <label
+            className="flex items-center gap-[6px]"
+            style={{ fontSize: 11, fontWeight: 700, letterSpacing: 0.4, textTransform: "uppercase" as const, color: "#4e6987", ...ff }}
+          >
+            <Shapes size={12} weight="bold" className="text-[#8C8CD4]" />
+            Condições de Filtro
+          </label>
+          <span className="text-[#98989d]" style={{ fontSize: 10, fontWeight: 600, letterSpacing: -0.2, ...ff }}>
+            {groups.length} {groups.length === 1 ? "grupo" : "grupos"} · {totalConditions} {totalConditions === 1 ? "condição" : "condições"}
+          </span>
+        </div>
+        <span className="text-[#98989d]" style={{ fontSize: 12, fontWeight: 500, letterSpacing: -0.2, ...ff }}>
+          Apenas registros que atenderem as condições aparecerão como opções
+        </span>
+      </div>
+
+      {/* Validation warning */}
+      {showValidation && hasIncomplete && (
+        <div className="flex items-center gap-[10px] px-[14px] py-[10px] rounded-[10px] bg-[#ffedeb]" style={{ border: "1px solid rgba(245,98,51,0.25)" }}>
+          <Warning size={16} weight="bold" className="text-[#f56233] shrink-0" />
+          <span style={{ fontSize: 12, fontWeight: 600, letterSpacing: -0.2, color: "#f56233", ...ff }}>
+            {incompleteCount} {incompleteCount === 1 ? "condição incompleta" : "condições incompletas"} — preencha os campos obrigatórios antes de salvar
+          </span>
+        </div>
+      )}
+
+      {/* Empty state */}
+      {groups.length === 0 && (
+        <div className="flex items-center justify-center h-[60px] rounded-[10px] border-2 border-dashed border-[#c8cfdb]/50">
+          <span className="text-[#98989d]" style={{ fontSize: 13, fontWeight: 500, ...ff }}>
+            Nenhuma condição adicionada
+          </span>
+        </div>
+      )}
+
+      {/* Groups */}
+      <div className="flex flex-col gap-0">
+        {groups.map((group, gi) => (
+          <div key={group.id} className="flex flex-col">
+            {/* Inter-group connector */}
+            {gi > 0 && (
+              <div className="flex items-center gap-[10px] py-[8px]">
+                <div className="flex-1 h-[1px]" style={{ background: group.connector === "and" ? "rgba(140,140,212,0.3)" : "rgba(7,171,222,0.3)" }} />
+                <button
+                  onClick={() => toggleGroupConnector(gi)}
+                  className="flex items-center justify-center h-[28px] px-[14px] rounded-[500px] cursor-pointer transition-all"
+                  style={{
+                    fontSize: 11,
+                    fontWeight: 800,
+                    letterSpacing: 0.6,
+                    textTransform: "uppercase" as const,
+                    color: group.connector === "and" ? "#8C8CD4" : "#07abde",
+                    backgroundColor: group.connector === "and" ? "#e8e8fd" : "#dcf0ff",
+                    border: `1.5px solid ${group.connector === "and" ? "rgba(140,140,212,0.4)" : "rgba(7,171,222,0.4)"}`,
+                    boxShadow: "0px 1px 3px rgba(0,0,0,0.06)",
+                    ...ff,
+                  }}
+                >
+                  {group.connector === "and" ? "E" : "OU"}
+                </button>
+                <div className="flex-1 h-[1px]" style={{ background: group.connector === "and" ? "rgba(140,140,212,0.3)" : "rgba(7,171,222,0.3)" }} />
+              </div>
+            )}
+
+            {/* Group card */}
+            <div
+              className="group/grp flex flex-col gap-[6px] p-[12px] rounded-[12px] relative"
+              style={{
+                backgroundColor: "#f6f7f980",
+                border: `1.5px solid ${group.conditions.length > 1 ? (group.conditions[1]?.connector === "and" ? "rgba(140,140,212,0.25)" : "rgba(7,171,222,0.25)") : "rgba(200,207,219,0.35)"}`,
+              }}
+            >
+              {/* Group header */}
+              <div className="flex items-center justify-between px-[4px] pb-[2px]">
+                <div className="flex items-center gap-[6px]">
+                  <span className="text-[#98989d]" style={{ fontSize: 10, fontWeight: 700, letterSpacing: 0.3, textTransform: "uppercase" as const, ...ff }}>
+                    Grupo {gi + 1}
+                  </span>
+                  <span
+                    className="inline-flex items-center h-[18px] px-[6px] rounded-[500px]"
+                    style={{
+                      fontSize: 9, fontWeight: 700, letterSpacing: 0.3,
+                      color: "#4e6987", backgroundColor: "#dde3ec",
+                      ...ff,
+                    }}
+                  >
+                    {group.conditions.length} {group.conditions.length === 1 ? "cond." : "conds."}
+                  </span>
+                </div>
+                <button
+                  onClick={() => removeGroup(gi)}
+                  className="shrink-0 flex items-center justify-center size-[24px] rounded-[6px] text-[#c8cfdb] hover:text-[#e85d75] hover:bg-[#ffedeb] opacity-0 group-hover/grp:opacity-100 transition-all cursor-pointer"
+                >
+                  <Trash size={13} weight="bold" />
+                </button>
+              </div>
+
+              {/* Conditions within group */}
+              {group.conditions.map((cond, ci) => {
+                const incomplete = showValidation && isCondIncomplete(cond);
+                return (
+                  <div key={cond.id} className="flex flex-col">
+                    {/* Intra-group connector */}
+                    {ci > 0 && (
+                      <div className="flex items-center gap-[8px] py-[4px] pl-[12px]">
+                        <div className="flex-1 h-[1px] bg-[#c8cfdb]/30" />
+                        <button
+                          onClick={() => toggleCondConnector(gi, ci)}
+                          className="flex items-center justify-center h-[22px] px-[10px] rounded-[500px] cursor-pointer transition-all"
+                          style={{
+                            fontSize: 9,
+                            fontWeight: 800,
+                            letterSpacing: 0.5,
+                            textTransform: "uppercase" as const,
+                            color: cond.connector === "and" ? "#8C8CD4" : "#07abde",
+                            backgroundColor: cond.connector === "and" ? "#e8e8fd" : "#dcf0ff",
+                            border: `1px solid ${cond.connector === "and" ? "rgba(140,140,212,0.3)" : "rgba(7,171,222,0.3)"}`,
+                            ...ff,
+                          }}
+                        >
+                          {cond.connector === "and" ? "E" : "OU"}
+                        </button>
+                        <div className="flex-1 h-[1px] bg-[#c8cfdb]/30" />
+                      </div>
+                    )}
+
+                    {/* Condition card */}
+                    <div
+                      className="group/cond flex flex-col gap-[8px] p-[12px] rounded-[10px] transition-colors relative"
+                      style={{
+                        backgroundColor: incomplete ? "rgba(245,98,51,0.04)" : "#ffffff",
+                        border: incomplete ? "1.5px solid rgba(245,98,51,0.35)" : "1px solid rgba(200,207,219,0.3)",
+                      }}
+                    >
+                      {/* Condition number + remove */}
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-[6px]">
+                          <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: 0.3, textTransform: "uppercase" as const, color: incomplete ? "#f56233" : "#98989d", ...ff }}>
+                            Condição {ci + 1}
+                          </span>
+                          {incomplete && (
+                            <Warning size={12} weight="bold" className="text-[#f56233]" />
+                          )}
+                        </div>
+                        <button
+                          onClick={() => removeCondFromGroup(gi, ci)}
+                          className="shrink-0 flex items-center justify-center size-[24px] rounded-[6px] text-[#c8cfdb] hover:text-[#e85d75] hover:bg-[#ffedeb] opacity-0 group-hover/cond:opacity-100 transition-all cursor-pointer"
+                        >
+                          <Trash size={13} weight="bold" />
+                        </button>
+                      </div>
+
+                      {/* Field */}
+                      <FieldInput
+                        label="Campo de Referência (fonte)"
+                        value={cond.field}
+                        onChange={(v) => updateCond(gi, ci, { field: v })}
+                        placeholder="Ex: account_id, stage"
+                        error={showValidation && !cond.field.trim()}
+                        errorMsg="Campo obrigatório"
+                      />
+
+                      {/* Operator + Value */}
+                      <div className={condNeedsValue(cond.operator) ? "grid grid-cols-2 gap-[10px]" : ""}>
+                        <FieldSelect
+                          label="Operador"
+                          value={cond.operator}
+                          onChange={(v) => updateCond(gi, ci, { operator: v })}
+                          options={CONDITION_OPERATORS}
+                        />
+                        {condNeedsValue(cond.operator) && (
+                          <FieldInput
+                            label="Valor / Campo Local"
+                            value={cond.value}
+                            onChange={(v) => updateCond(gi, ci, { value: v })}
+                            placeholder="Ex: {{account_id}} ou texto fixo"
+                            error={showValidation && !cond.value.trim()}
+                            errorMsg="Valor obrigatório"
+                          />
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+
+              {/* Add condition to group */}
+              <div className="px-[4px] pt-[2px]">
+                <button
+                  onClick={() => addCondToGroup(gi)}
+                  className="flex items-center gap-[6px] h-[28px] px-[10px] rounded-full text-[#0483AB] hover:bg-[#DCF0FF] transition-colors cursor-pointer w-fit"
+                >
+                  <Plus size={12} weight="bold" />
+                  <span style={{ fontSize: 11, fontWeight: 600, letterSpacing: -0.2, ...ff }}>Condição</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* Add group + Validate buttons */}
+      <div className="flex items-center gap-[8px]">
+        <button
+          onClick={addGroup}
+          className="flex items-center gap-[8px] h-[36px] px-[14px] rounded-full bg-[#F6F7F9] text-[#0483AB] hover:bg-[#DCF0FF] transition-colors cursor-pointer"
+        >
+          <Plus size={14} weight="bold" />
+          <span style={{ fontSize: 13, fontWeight: 600, letterSpacing: -0.3, ...ff }}>Adicionar grupo</span>
+        </button>
+        {totalConditions > 0 && !showValidation && (
+          <button
+            onClick={() => setShowValidation(true)}
+            className="flex items-center gap-[6px] h-[36px] px-[14px] rounded-full text-[#4e6987] hover:bg-[#f0f2f5] transition-colors cursor-pointer"
+          >
+            <Check size={14} weight="bold" />
+            <span style={{ fontSize: 13, fontWeight: 600, letterSpacing: -0.3, ...ff }}>Validar</span>
+          </button>
+        )}
+        {showValidation && !hasIncomplete && totalConditions > 0 && (
+          <span className="flex items-center gap-[6px] text-[#3eb370]" style={{ fontSize: 12, fontWeight: 600, letterSpacing: -0.2, ...ff }}>
+            <Check size={14} weight="bold" /> Todas as condições estão válidas
+          </span>
+        )}
+      </div>
+
+      {/* Visual flow diagram */}
+      <div
+        className="flex flex-wrap items-center gap-[8px] px-[16px] py-[14px] rounded-[10px] bg-[#f6f7f9]"
+        style={{ border: "1px solid rgba(200,207,219,0.4)" }}
+      >
+        {/* Source */}
+        <div className="flex items-center gap-[8px]">
+          <div className="flex items-center justify-center size-[28px] rounded-[6px] bg-[#e8e8fd]">
+            <Database size={13} weight="bold" className="text-[#8C8CD4]" />
+          </div>
+          <span className="text-[#28415c]" style={{ fontSize: 12, fontWeight: 600, letterSpacing: -0.3, ...ff }}>
+            {config.contextSourceObject ? OBJECT_INFO[config.contextSourceObject as ObjectType]?.label || config.contextSourceObject : "Fonte"}
+          </span>
+        </div>
+        <ArrowRight size={14} weight="bold" className="text-[#c8cfdb]" />
+
+        {/* Groups expression */}
+        {groups.length === 0 ? (
+          <div className="flex items-center gap-[6px] px-[10px] py-[4px] rounded-[500px] bg-[#e8e8fd]/60" style={{ border: "1px solid rgba(140,140,212,0.3)" }}>
+            <Shapes size={11} weight="bold" className="text-[#8C8CD4]" />
+            <span className="text-[#8C8CD4]" style={{ fontSize: 11, fontWeight: 700, letterSpacing: -0.2, ...ff }}>
+              Sem filtro
+            </span>
+          </div>
+        ) : (
+          groups.map((group, gi) => (
+            <div key={group.id} className="flex items-center gap-[6px]">
+              {gi > 0 && (
+                <span style={{ fontSize: 10, fontWeight: 800, letterSpacing: 0.4, color: group.connector === "and" ? "#8C8CD4" : "#07abde", ...ff }}>
+                  {group.connector === "and" ? "E" : "OU"}
+                </span>
+              )}
+              {/* Group with parentheses */}
+              <div className="flex items-center gap-[3px]">
+                {group.conditions.length > 1 && (
+                  <span style={{ fontSize: 13, fontWeight: 700, color: "#b0b0d6", ...ff }}>(</span>
+                )}
+                {group.conditions.map((cond, ci) => (
+                  <div key={cond.id} className="flex items-center gap-[3px]">
+                    {ci > 0 && (
+                      <span style={{ fontSize: 9, fontWeight: 800, letterSpacing: 0.3, color: cond.connector === "and" ? "#8C8CD4" : "#07abde", ...ff }}>
+                        {cond.connector === "and" ? "E" : "OU"}
+                      </span>
+                    )}
+                    <div
+                      className="flex items-center gap-[3px] px-[6px] py-[2px] rounded-[500px]"
+                      style={{
+                        backgroundColor: (showValidation && isCondIncomplete(cond)) ? "rgba(245,98,51,0.1)" : "rgba(140,140,212,0.1)",
+                        border: `1px solid ${(showValidation && isCondIncomplete(cond)) ? "rgba(245,98,51,0.3)" : "rgba(140,140,212,0.2)"}`,
+                      }}
+                    >
+                      <span style={{ fontSize: 9, fontWeight: 700, letterSpacing: -0.2, color: (showValidation && !cond.field.trim()) ? "#f56233" : "#8C8CD4", ...ff }}>
+                        {cond.field || "?"}
+                      </span>
+                      <span style={{ fontSize: 8, fontWeight: 600, color: "#b0b0d6", ...ff }}>
+                        {CONDITION_OPERATORS.find(o => o.value === cond.operator)?.label ?? cond.operator}
+                      </span>
+                      {condNeedsValue(cond.operator) && (
+                        <span style={{ fontSize: 9, fontWeight: 600, fontFamily: "'DM Mono', monospace", color: (showValidation && !cond.value.trim()) ? "#f56233" : "#8c8cd4", ...ff }}>
+                          {cond.value || "?"}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                ))}
+                {group.conditions.length > 1 && (
+                  <span style={{ fontSize: 13, fontWeight: 700, color: "#b0b0d6", ...ff }}>)</span>
+                )}
+              </div>
+            </div>
+          ))
+        )}
+
+        <ArrowRight size={14} weight="bold" className="text-[#c8cfdb]" />
+        <div className="flex items-center gap-[6px]">
+          <Code size={13} weight="bold" className="text-[#8c8cd4]" />
+          <span className="text-[#8c8cd4]" style={{ fontSize: 12, fontWeight: 600, fontFamily: "'DM Mono', monospace", ...ff }}>
+            {config.contextDisplayField || "campo"}
+          </span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ================================================================== */
+/*  TypeConfigPanel                                                     */
+/* ================================================================== */
 
 function TypeConfigPanel({
   fieldType, config, onChange,
@@ -898,121 +1644,7 @@ function TypeConfigPanel({
 
     /* ─── Contextual ─── */
     case "contextual": {
-      const sourceObjects = [
-        { value: "", label: "Selecione o objeto fonte..." },
-        { value: "lead", label: "Lead" },
-        { value: "oportunidade", label: "Oportunidade" },
-        { value: "contato", label: "Contato" },
-        { value: "conta", label: "Conta" },
-      ];
-      const conditionOperators = [
-        { value: "equals", label: "Igual a" },
-        { value: "not_equals", label: "Diferente de" },
-        { value: "contains", label: "Contém" },
-        { value: "not_empty", label: "Não está vazio" },
-        { value: "is_empty", label: "Está vazio" },
-        { value: "greater_than", label: "Maior que" },
-        { value: "less_than", label: "Menor que" },
-      ];
-      return (
-        <div className="flex flex-col gap-[20px]">
-          {/* Explanation */}
-          <div className="flex items-start gap-[12px] px-[14px] py-[12px] rounded-[10px] bg-[#e8e8fd]/60" style={{ border: "1px solid rgba(140,140,212,0.2)" }}>
-            <Lightning size={16} weight="duotone" className="text-[#8C8CD4] shrink-0 mt-[2px]" />
-            <div className="flex flex-col gap-[4px]">
-              <span className="text-[#28415c]" style={{ fontSize: 13, fontWeight: 600, letterSpacing: -0.3, ...ff }}>
-                Como funciona
-              </span>
-              <span className="text-[#4e6987]" style={{ fontSize: 12, fontWeight: 500, letterSpacing: -0.2, lineHeight: "18px", ...ff }}>
-                O campo contextual busca opções de outro objeto do CRM com base em uma condição. Por exemplo: exibir apenas contatos cuja conta seja a mesma do registro atual.
-              </span>
-            </div>
-          </div>
-
-          {/* Source Object */}
-          <FieldSelect
-            label="Objeto Fonte"
-            value={config.contextSourceObject ?? ""}
-            onChange={(v) => update({ contextSourceObject: v })}
-            options={sourceObjects}
-          />
-
-          {/* Source display field */}
-          <FieldInput
-            label="Campo a Exibir"
-            value={config.contextDisplayField ?? ""}
-            onChange={(v) => update({ contextDisplayField: v })}
-            placeholder="Ex: nome, email, razao_social"
-          />
-
-          <HorizontalDivider />
-
-          {/* Condition */}
-          <div className="flex flex-col gap-[6px]">
-            <label
-              className="text-[#4e6987] flex items-center gap-[6px]"
-              style={{ fontSize: 11, fontWeight: 700, letterSpacing: 0.4, textTransform: "uppercase", ...ff }}
-            >
-              <Shapes size={12} weight="bold" className="text-[#8C8CD4]" />
-              Condição de Filtro
-            </label>
-            <span className="text-[#98989d]" style={{ fontSize: 12, fontWeight: 500, letterSpacing: -0.2, ...ff }}>
-              Apenas registros que atenderem esta condição aparecerão como opções
-            </span>
-          </div>
-
-          <FieldInput
-            label="Campo de Referência (fonte)"
-            value={config.contextConditionField ?? ""}
-            onChange={(v) => update({ contextConditionField: v })}
-            placeholder="Ex: account_id, stage"
-          />
-
-          <div className="grid grid-cols-2 gap-[12px]">
-            <FieldSelect
-              label="Operador"
-              value={config.contextConditionOperator ?? "equals"}
-              onChange={(v) => update({ contextConditionOperator: v })}
-              options={conditionOperators}
-            />
-            <FieldInput
-              label="Valor / Campo Local"
-              value={config.contextConditionValue ?? ""}
-              onChange={(v) => update({ contextConditionValue: v })}
-              placeholder={"Ex: {{account_id}} ou texto fixo"}
-            />
-          </div>
-
-          {/* Visual flow diagram */}
-          <div
-            className="flex items-center gap-[10px] px-[16px] py-[14px] rounded-[10px] bg-[#f6f7f9]"
-            style={{ border: "1px solid rgba(200,207,219,0.4)" }}
-          >
-            <div className="flex items-center gap-[8px]">
-              <div className="flex items-center justify-center size-[28px] rounded-[6px] bg-[#e8e8fd]">
-                <Database size={13} weight="bold" className="text-[#8C8CD4]" />
-              </div>
-              <span className="text-[#28415c]" style={{ fontSize: 12, fontWeight: 600, letterSpacing: -0.3, ...ff }}>
-                {config.contextSourceObject ? OBJECT_INFO[config.contextSourceObject as ObjectType]?.label || config.contextSourceObject : "Fonte"}
-              </span>
-            </div>
-            <ArrowRight size={14} weight="bold" className="text-[#c8cfdb]" />
-            <div className="flex items-center gap-[6px] px-[10px] py-[4px] rounded-[500px] bg-[#e8e8fd]/60" style={{ border: "1px solid rgba(140,140,212,0.3)" }}>
-              <Shapes size={11} weight="bold" className="text-[#8C8CD4]" />
-              <span className="text-[#8C8CD4]" style={{ fontSize: 11, fontWeight: 700, letterSpacing: -0.2, ...ff }}>
-                {config.contextConditionOperator ? conditionOperators.find(o => o.value === config.contextConditionOperator)?.label : "Filtro"}
-              </span>
-            </div>
-            <ArrowRight size={14} weight="bold" className="text-[#c8cfdb]" />
-            <div className="flex items-center gap-[6px]">
-              <Code size={13} weight="bold" className="text-[#8c8cd4]" />
-              <span className="text-[#8c8cd4]" style={{ fontSize: 12, fontWeight: 600, fontFamily: "'DM Mono', monospace", ...ff }}>
-                {config.contextDisplayField || "campo"}
-              </span>
-            </div>
-          </div>
-        </div>
-      );
+      return <ContextualConditionBuilder config={config} update={update} />;
     }
 
     /* ─── Calculated ─── */
@@ -1045,6 +1677,7 @@ const ALL_NATIVE_FIELDS: Record<string, NativeField[]> = {
   oportunidade: OPPORTUNITY_FIELDS,
   contato: CONTACT_FIELDS,
   conta: ACCOUNT_FIELDS,
+  atividade: ACTIVITY_FIELDS,
 };
 
 function findNativeField(fieldKey: string, objectHint?: string): { field: NativeField; objectType: ObjectType } | null {
@@ -1109,12 +1742,16 @@ export function CrmSettingsCreateField() {
       if (ov?.label) setFieldName(ov.label);
       if (ov?.visible !== undefined) setVisible(ov.visible);
       if (ov?.required !== undefined) setRequired(ov.required);
-      if (ov?.fieldType) setSelectedType(ov.fieldType as FieldType);
+      // fieldType for native fields comes from the definition, not KV overrides
       if (ov?.description) setDescription(ov.description);
-      if (ov?.options?.length) {
-        setTypeConfig({
-          options: ov.options.map((o, i) => ({ id: `cfg_${i}`, label: o.label, color: o.color })),
-        });
+      if (ov?.contextualGroups?.length || ov?.contextConditionGroups?.length || ov?.contextConditions?.length || ov?.options?.length) {
+        setTypeConfig((prev) => ({
+          ...prev,
+          ...(ov.contextualGroups?.length ? { contextualGroups: ov.contextualGroups } : {}),
+          ...(ov.contextConditionGroups?.length ? { contextConditionGroups: ov.contextConditionGroups } : {}),
+          ...(ov.contextConditions?.length ? { contextConditions: ov.contextConditions } : {}),
+          ...(ov.options?.length ? { options: ov.options.map((o: any, i: number) => ({ id: `cfg_${i}`, label: o.label, color: o.color })) } : {}),
+        }));
       }
     }).catch((err) => console.error("Error loading field config overrides for edit page:", err));
     return () => { cancelled = true; };
@@ -1165,7 +1802,7 @@ export function CrmSettingsCreateField() {
 
   /* ─── Object pill animation ─── */
   const pillContainerRef = useRef<HTMLDivElement>(null);
-  const tabRefs = useRef<Record<ObjectType, HTMLButtonElement | null>>({ lead: null, oportunidade: null, contato: null, conta: null });
+  const tabRefs = useRef<Record<ObjectType, HTMLButtonElement | null>>({ lead: null, oportunidade: null, contato: null, conta: null, atividade: null });
   const [pillStyle, setPillStyle] = useState({ left: 0, width: 0 });
 
   useEffect(() => {
@@ -1191,17 +1828,30 @@ export function CrmSettingsCreateField() {
         // Native field — persist ALL overrides via patchFieldConfig
         const trimmedName = fieldName.trim();
         const overrides: Record<string, any> = {};
+        // For contextual fields (at_status), flatten groups into options + persist groups
+        const flatOptions = typeConfig.contextualGroups
+          ? typeConfig.contextualGroups.flatMap((g) =>
+              g.statuses.filter((s) => s.label.trim()).map((s) => ({
+                value: s.key,
+                label: s.label,
+                color: s.color || "#4e6987",
+              }))
+            )
+          : typeConfig.options?.map((o) => ({
+              value: o.label,
+              label: o.label,
+              color: o.color || "#4e6987",
+            }));
         overrides[nativeEditData.field.key] = {
           label: trimmedName,
           visible,
           required,
-          fieldType: selectedType,
+          // fieldType for native fields is defined in code, not persisted as override
           description: description.trim() || undefined,
-          options: typeConfig.options?.map((o) => ({
-            value: o.label,
-            label: o.label,
-            color: o.color || "#4e6987",
-          })),
+          options: flatOptions,
+          contextualGroups: typeConfig.contextualGroups ?? undefined,
+          contextConditionGroups: typeConfig.contextConditionGroups ?? undefined,
+          contextConditions: typeConfig.contextConditions ?? undefined,
         };
         await patchFieldConfig(objectType, overrides);
       } else {
@@ -1243,6 +1893,7 @@ export function CrmSettingsCreateField() {
     { key: "oportunidade", label: "Oportunidade" },
     { key: "contato", label: "Contato" },
     { key: "conta", label: "Conta" },
+    { key: "atividade", label: "Atividade" },
   ];
 
   return (
@@ -1251,14 +1902,6 @@ export function CrmSettingsCreateField() {
 
         {/* ═══════ HEADER ═══════ */}
         <div className="flex items-center gap-[12px] px-[24px] pt-[20px] pb-[16px] shrink-0">
-          {/* Back */}
-          <button
-            onClick={() => navigate("/crm/ajustes/campos")}
-            className="flex items-center justify-center size-[36px] rounded-[10px] hover:bg-[#f0f2f5] transition-colors cursor-pointer shrink-0"
-          >
-            <ArrowLeft size={20} weight="bold" className="text-[#4e6987]" />
-          </button>
-
           <div className="flex-1 min-w-0">
             <span
               className="text-[#28415c] block"
@@ -1278,16 +1921,25 @@ export function CrmSettingsCreateField() {
           <button
             onClick={handleSave}
             disabled={!canSave}
-            className={`flex items-center gap-[8px] h-[40px] px-[20px] rounded-[500px] text-white transition-all ${
+            className={`flex items-center gap-[8px] h-[40px] px-[20px] rounded-full text-white transition-all ${
               canSave
-                ? "bg-[#07abde] hover:bg-[#0696c7] shadow-[0px_2px_4px_0px_rgba(18,34,50,0.3)] cursor-pointer"
-                : "bg-[#c8cfdb] cursor-not-allowed"
+                ? "bg-[#3CCEA7] hover:bg-[#30B893] cursor-pointer"
+                : "bg-[#D9D9D9] cursor-not-allowed"
             }`}
             style={{ fontSize: 14, fontWeight: 600, letterSpacing: -0.3, ...ff }}
           >
-            <FloppyDisk size={16} weight="bold" />
             {isEditMode ? "Salvar Alterações" : "Salvar Campo"}
           </button>
+
+          {/* Close — Action Pill DS */}
+          <div className="flex items-center bg-[#F6F7F9] rounded-[100px] h-[44px] px-[5px] shrink-0">
+            <button
+              onClick={() => navigate("/crm/ajustes/campos")}
+              className="flex items-center justify-center size-[32px] rounded-full bg-transparent text-[#0483AB] hover:bg-[#DCF0FF] transition-colors cursor-pointer"
+            >
+              <X size={18} weight="bold" />
+            </button>
+          </div>
         </div>
 
         <HorizontalDivider />
@@ -1296,7 +1948,7 @@ export function CrmSettingsCreateField() {
         <div className="flex-1 min-h-0 flex gap-[24px] p-[24px]">
 
             {/* ─── LEFT: General Info ─── */}
-            <div className="w-[380px] shrink-0 flex flex-col gap-[20px] overflow-y-auto">
+            <div className="w-[440px] shrink-0 flex flex-col gap-[20px] overflow-y-auto">
 
               {/* Object Selector */}
               <div className="flex flex-col gap-[8px]">
@@ -1468,8 +2120,8 @@ export function CrmSettingsCreateField() {
                     return (
                       <motion.button
                         key={ft}
-                        onClick={() => setSelectedType(ft)}
-                        className="flex items-center gap-[8px] h-[42px] px-[12px] cursor-pointer border-2 border-transparent"
+                        onClick={() => !isNativeEdit && setSelectedType(ft)}
+                        className={`flex items-center gap-[8px] h-[42px] pl-[9px] pr-[12px] border-2 border-transparent ${isNativeEdit ? "cursor-default opacity-60" : "cursor-pointer"}`}
                         animate={{
                           borderRadius: isSelected ? 500 : 10,
                           backgroundColor: isSelected ? "#28415c" : "#f6f7f9",
@@ -1477,12 +2129,23 @@ export function CrmSettingsCreateField() {
                         whileHover={!isSelected ? { backgroundColor: "#eef0f4" } : {}}
                         transition={{ type: "spring", stiffness: 500, damping: 30 }}
                       >
-                        <div
-                          className="flex items-center justify-center size-[24px] rounded-[6px] shrink-0"
+                        <motion.div
+                          className="flex items-center justify-center size-[24px] shrink-0"
+                          animate={{
+                            borderRadius: isSelected ? 12 : 6,
+                            scale: isSelected ? 1.08 : 1,
+                          }}
+                          transition={{ type: "spring", stiffness: 500, damping: 30 }}
                           style={{ backgroundColor: meta.bg }}
                         >
-                          <Icon size={13} weight="bold" style={{ color: meta.color }} />
-                        </div>
+                          <motion.span
+                            className="flex items-center justify-center"
+                            animate={{ rotate: isSelected ? 360 : 0, scale: isSelected ? 1.1 : 1 }}
+                            transition={{ type: "spring", stiffness: 400, damping: 25 }}
+                          >
+                            <Icon size={13} weight="bold" style={{ color: meta.color }} />
+                          </motion.span>
+                        </motion.div>
                         <span
                           className={isSelected ? "text-[#f6f7f9]" : "text-[#28415c]"}
                           style={{ fontSize: 12, fontWeight: 600, letterSpacing: -0.3, ...ff }}
@@ -1538,17 +2201,21 @@ export function CrmSettingsCreateField() {
                 >
                   <AnimatePresence mode="wait">
                     <motion.div
-                      key={selectedType}
+                      key={selectedType + (backendName === "at_status" && objectType === "atividade" ? "_ctx" : "")}
                       initial={{ opacity: 0, y: 8 }}
                       animate={{ opacity: 1, y: 0 }}
                       exit={{ opacity: 0, y: -8 }}
                       transition={{ duration: 0.15 }}
                     >
-                      <TypeConfigPanel
-                        fieldType={selectedType}
-                        config={typeConfig}
-                        onChange={setTypeConfig}
-                      />
+                      {backendName === "at_status" && objectType === "atividade" ? (
+                        <ActivityStatusContextualPanel config={typeConfig} onChange={setTypeConfig} />
+                      ) : (
+                        <TypeConfigPanel
+                          fieldType={selectedType}
+                          config={typeConfig}
+                          onChange={setTypeConfig}
+                        />
+                      )}
                     </motion.div>
                   </AnimatePresence>
                 </div>

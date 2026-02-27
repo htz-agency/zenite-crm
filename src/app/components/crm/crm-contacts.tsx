@@ -472,8 +472,8 @@ function SectionHeader({
 
 export function CrmContacts() {
   const { query: globalSearch } = useCrmSearch();
-  const [contacts, setContacts] = useState<Contact[]>(mockContacts);
-  const [loading, setLoading] = useState(false);
+  const [contacts, setContacts] = useState<Contact[]>([]);
+  const [loading, setLoading] = useState(true);
   const [selectedContactId, setSelectedContactId] = useState<string | null>(null);
   const [search, setSearch] = useState("");
   const [titleMenuOpen, setTitleMenuOpen] = useState(false);
@@ -496,7 +496,9 @@ export function CrmContacts() {
         );
 
         if (dbRows.length === 0) {
-          /* DB empty — keep mock data, seed in background */
+          /* DB empty — show mock data, seed in background */
+          setContacts(mockContacts);
+          setLoading(false);
           const companyToAccountId: Record<string, string> = {
             "Empresa Alpha": "AC-0EA1",
             "Beta Solutions": "AC-C3D4",
@@ -558,6 +560,9 @@ export function CrmContacts() {
         }));
       } catch (err) {
         console.warn("Could not load contacts from server, using local data:", err);
+        setContacts(mockContacts);
+      } finally {
+        if (!cancelled) setLoading(false);
       }
     })();
     return () => { cancelled = true; };
@@ -784,13 +789,13 @@ export function CrmContacts() {
             {/* Right: action buttons */}
             <div className="hidden lg:flex items-center gap-[15px]">
               <div className="flex items-center gap-[10px] bg-[#f6f7f9] rounded-[100px] h-[44px] px-[5px]">
-                <button className="flex items-center justify-center size-[32px] rounded-full hover:bg-[#DCF0FF] active:bg-[#07abde] active:text-[#f6f7f9] transition-colors text-[#28415c]">
+                <button className="flex items-center justify-center size-[32px] rounded-full bg-transparent text-[#0483AB] hover:bg-[#DCF0FF] hover:text-[#0483AB] transition-colors cursor-pointer">
                   <LinkIcon size={18} />
                 </button>
-                <button className="flex items-center justify-center size-[32px] rounded-full hover:bg-[#DCF0FF] active:bg-[#07abde] active:text-[#f6f7f9] transition-colors text-[#28415c]">
+                <button className="flex items-center justify-center size-[32px] rounded-full bg-transparent text-[#0483AB] hover:bg-[#DCF0FF] hover:text-[#0483AB] transition-colors cursor-pointer">
                   <ArrowSquareDownRight size={18} />
                 </button>
-                <button className="flex items-center justify-center size-[32px] rounded-full hover:bg-[#DCF0FF] active:bg-[#07abde] active:text-[#f6f7f9] transition-colors text-[#28415c]">
+                <button className="flex items-center justify-center size-[32px] rounded-full bg-transparent text-[#0483AB] hover:bg-[#DCF0FF] hover:text-[#0483AB] transition-colors cursor-pointer">
                   <Columns size={18} />
                 </button>
               </div>
@@ -804,7 +809,7 @@ export function CrmContacts() {
               <button
                 onClick={() => { setFilterMenuOpen((v) => !v); setFilterSubField(null); }}
                 className={`relative flex items-center justify-center w-[34px] h-[34px] rounded-full transition-colors cursor-pointer ${
-                  filterMenuOpen ? "bg-[#28415c] text-white" : "bg-[#dcf0ff] text-[#28415c] hover:bg-[#cce7fb]"
+                  filterMenuOpen ? "bg-[#07ABDE] text-[#DCF0FF]" : "bg-[#F6F7F9] text-[#0483AB] hover:bg-[#DCF0FF] hover:text-[#0483AB]"
                 }`}
               >
                 <Plus size={16} weight="bold" />
@@ -942,7 +947,7 @@ export function CrmContacts() {
                         </span>
                         <button
                           onClick={() => removeFilter(idx)}
-                          className="flex items-center justify-center size-[18px] rounded-full hover:bg-[#28415c] hover:text-white text-[#4e6987] transition-colors cursor-pointer"
+                          className="flex items-center justify-center size-[18px] rounded-full text-[#0483AB] hover:bg-[#07ABDE] hover:text-white transition-colors cursor-pointer"
                         >
                           <X size={10} weight="bold" />
                         </button>
@@ -951,7 +956,7 @@ export function CrmContacts() {
                   })}
                   <button
                     onClick={clearAllFilters}
-                    className="flex items-center gap-[4px] h-[28px] px-[12px] rounded-[500px] text-[#98989d] hover:text-[#28415c] hover:bg-[#f6f7f9] transition-colors cursor-pointer"
+                    className="flex items-center gap-[4px] h-[28px] px-[12px] rounded-[500px] bg-[#F6F7F9] text-[#F56233] hover:bg-[#FFEDEB] hover:text-[#F56233] transition-colors cursor-pointer"
                   >
                     <X size={10} weight="bold" />
                     <span
@@ -968,7 +973,7 @@ export function CrmContacts() {
             <VerticalDivider />
 
             {/* Search */}
-            <div className="flex items-center gap-[8px] h-[36px] bg-[#f6f7f9] rounded-[500px] px-[14px] flex-1 min-w-[140px] max-w-[280px]" style={{ border: "1px solid rgba(200,207,219,0.6)" }}>
+            <div className="flex items-center gap-[8px] h-[36px] bg-[#DDE3EC] rounded-full px-[14px] flex-1 min-w-[140px] max-w-[280px]" style={{ boxShadow: "inset 0px 1px 3px 0px rgba(0,0,0,0.1), inset 0px 1px 2px 0px rgba(0,0,0,0.06)" }}>
               <MagnifyingGlass size={16} weight="bold" className="text-[#98989d] shrink-0" />
               <input
                 type="text"
@@ -1073,7 +1078,7 @@ export function CrmContacts() {
                                 src={contact.avatar || imgAvatar}
                               />
                               <span
-                                className="truncate text-[#07abde]"
+                                className="truncate text-[#0483AB]"
                                 style={{ fontSize: 12, fontWeight: 500, letterSpacing: -0.5, ...fontFeature }}
                               >
                                 {`${contact.name} ${contact.lastName}`.trim()}
@@ -1108,7 +1113,7 @@ export function CrmContacts() {
                                 src={imgAvatar}
                               />
                               <span
-                                className="truncate text-[#07abde]"
+                                className="truncate text-[#0483AB]"
                                 style={{ fontSize: 12, fontWeight: 500, letterSpacing: -0.5, ...fontFeature }}
                               >
                                 {contact.owner}

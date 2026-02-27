@@ -207,7 +207,7 @@ function PermToggle({
       disabled={disabled}
       className="relative flex items-center h-[22px] w-[38px] rounded-full transition-colors cursor-pointer"
       style={{
-        backgroundColor: checked ? "#0483AB" : "#DDE3EC",
+        backgroundColor: checked ? "#07ABDE" : "#DDE3EC",
         opacity: disabled ? 0.5 : 1,
       }}
     >
@@ -501,9 +501,9 @@ export function CrmHierarchy() {
             <button
               onClick={handleSave}
               disabled={!dirty || saving}
-              className="flex items-center gap-[6px] h-[32px] px-[14px] rounded-[8px] transition-all cursor-pointer"
+              className="flex items-center gap-[6px] h-[32px] px-[14px] rounded-full transition-all cursor-pointer"
               style={{
-                backgroundColor: dirty ? "#0483AB" : "#DDE3EC",
+                backgroundColor: dirty ? "#3CCEA7" : "#DDE3EC",
                 color: dirty ? "#fff" : "#98989d",
                 opacity: saving ? 0.7 : 1,
                 ...ff,

@@ -58,7 +58,9 @@ import {
   SectionToggle,
   StageBar,
   CallLogPanel,
+  useEntityActivities,
 } from "./crm-detail-shared";
+import { usePermissions } from "./permission-context";
 
 /* ------------------------------------------------------------------ */
 /*  Types & Config                                                     */
@@ -167,10 +169,15 @@ const TABS: { key: ContactTab; label: string; icon: React.ComponentType<any> }[]
 /* ------------------------------------------------------------------ */
 
 const mockActivities: Activity[] = [
-  { id: "a1", type: "compromisso", label: "Compromisso", date: "04/01/2024 09:30", group: "FUTURO" },
-  { id: "a2", type: "tarefa", label: "Tarefa", date: "04/01/2024 09:30", group: "JULHO" },
-  { id: "a3", type: "ligacao", label: "Ligação", date: "04/01/2024 09:30", group: "JULHO" },
-  { id: "a4", type: "nota", label: "Nota", date: "04/01/2024 09:30", group: "JUNHO" },
+  { id: "a1", type: "compromisso", label: "Compromisso", date: "04/01/2024 09:30", group: "FUTURO", title: "Call de acompanhamento", meetingLink: "meet.google.com/qrs-tuvw-xyz", attendees: ["contato@empresa.com"] },
+  { id: "a9", type: "compromisso", label: "Compromisso", date: "15/03/2026 11:00", group: "FUTURO", title: "Revisão de contrato", attendees: ["contato@empresa.com", "juridico@empresa.com"], duration: "1h", notes: "Discutir cláusulas de SLA" },
+  { id: "a10", type: "compromisso", label: "Compromisso", date: "10/01/2024 16:00", group: "JANEIRO", title: "Onboarding kickoff", meetingLink: "teams.microsoft.com/meet/abc123", attendees: ["contato@empresa.com"], location: "Escritório SP" },
+  { id: "a11", type: "compromisso", label: "Compromisso", date: "22/11/2023 09:00", group: "NOVEMBRO", title: "Apresentação de resultados Q3", attendees: ["contato@empresa.com", "gerente@empresa.com"], duration: "45 min" },
+  { id: "a2", type: "tarefa", label: "Tarefa", date: "04/01/2024 09:30", group: "JULHO", title: "Atualizar dados cadastrais" },
+  { id: "a3", type: "ligacao", label: "Ligação", date: "04/01/2024 09:30", group: "JULHO", title: "Verificação de satisfação", duration: "6 minutos e 15 segundos" },
+  { id: "a4", type: "nota", label: "Nota", date: "04/01/2024 09:30", group: "JUNHO", notes: "Contato prefere comunicação por WhatsApp" },
+  { id: "a7", type: "nota", label: "Nota", date: "20/05/2024 16:30", group: "MAIO", notes: "O contato compartilhou feedback detalhado sobre a última entrega: gostou da velocidade de implementação, mas pediu melhorias na documentação técnica. Sugeriu criar um canal direto no Slack para agilizar comunicação com o time de produto. Também mencionou que será promovido a Head de Operações no próximo trimestre, o que pode ampliar o escopo do projeto significativamente." },
+  { id: "a8", type: "nota", label: "Nota", date: "10/05/2024 11:00", group: "MAIO", notes: "Contato viajará a trabalho em março. Reagendar todas as calls para após o dia 20." },
 ];
 
 const mockCalls: CallRecord[] = [
@@ -451,6 +458,7 @@ export function CrmContactDetail() {
   const [loading, setLoading] = useState(true);
   const { customFields, customValues, updateCustomValue } = useCustomFields("contato", id);
   const { isVisible: v, isRequired: rq, getLabel: fl } = useFieldVisibility("contato");
+  const { can } = usePermissions();
   const [accountId, setAccountId] = useState<string | null>(null);
   const [stage, setStage] = useState<ContactStage>("prospeccao");
   const [activeTab, setActiveTab] = useState<ContactTab>("detalhes");
@@ -607,6 +615,11 @@ export function CrmContactDetail() {
   const rightPanel: "calls" | "activities" =
     activeTab === "detalhes" ? "calls" : "activities";
 
+  // Load real activities for this contact (falls back to mock data)
+  const {
+    activities: realActivities,
+  } = useEntityActivities("contato", id, mockActivities);
+
   if (loading) {
     return (
       <div className="h-full flex items-center justify-center">
@@ -676,8 +689,12 @@ export function CrmContactDetail() {
             <div className="hidden lg:flex items-center gap-[10px] bg-[#f6f7f9] rounded-[100px] h-[44px] px-[5px] py-[0px]">
               <ActionButton><Tag size={18} weight="bold" /></ActionButton>
               <ActionButton><ClockCounterClockwise size={18} weight="bold" /></ActionButton>
-              <ActionButton><PencilSimple size={18} weight="bold" /></ActionButton>
-              <ActionButton><Trash size={18} weight="bold" /></ActionButton>
+              {can("contatos", "editar", contact.owner) && (
+                <ActionButton><PencilSimple size={18} weight="bold" /></ActionButton>
+              )}
+              {can("contatos", "excluir", contact.owner) && (
+                <ActionButton><Trash size={18} weight="bold" /></ActionButton>
+              )}
               <ActionButton><LinkIcon size={18} weight="bold" /></ActionButton>
               <ActionButton><CopySimple size={18} weight="bold" /></ActionButton>
               <ActionButton onClick={() => {
@@ -793,7 +810,7 @@ export function CrmContactDetail() {
         {/* RIGHT COLUMN */}
         <div className="hidden xl:flex flex-col w-[306px] shrink-0 bg-white rounded-[16px] overflow-hidden">
           {rightPanel === "calls" && <CallLogPanel calls={mockCalls} layoutId="ct-call-tab" activeColor="#431100" ctaBg="#FFEDEB" ctaText="#431100" ctaHover="#ffc6be" />}
-          {rightPanel === "activities" && <ActivityPanel activities={mockActivities} />}
+          {rightPanel === "activities" && <ActivityPanel activities={realActivities} />}
         </div>
       </div>
     </div>

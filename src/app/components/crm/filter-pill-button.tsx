@@ -57,8 +57,8 @@ export function FilterPillButton({
       : "h-[44px] px-[18px] rounded-[500px]";
 
   const colorClass = hasValue
-    ? "bg-[#07abde] text-white hover:bg-[#07abde]"
-    : "bg-[#f6f7f9] text-[#28415c] hover:bg-[#dcf0ff]";
+    ? "bg-[#07ABDE] text-[#DCF0FF] hover:bg-[#07ABDE]"
+    : "bg-[#f6f7f9] text-[#0483AB] hover:bg-[#dcf0ff] hover:text-[#0483AB]";
 
   return (
     <button
@@ -67,7 +67,7 @@ export function FilterPillButton({
     >
       {icon}
       <span
-        className={`shrink-0 text-left uppercase whitespace-nowrap ${hasValue ? "text-white" : "text-[#28415c]"}`}
+        className={`shrink-0 text-left uppercase whitespace-nowrap ${hasValue ? "text-[#DCF0FF]" : "text-[#0483AB]"}`}
         style={{ fontSize: 10, fontWeight: 700, letterSpacing: 0, ...fontFeature }}
       >
         {label}
@@ -80,8 +80,8 @@ export function FilterPillButton({
           }}
           className={`flex items-center justify-center size-[18px] rounded-full transition-colors cursor-pointer ${
             hasValue
-              ? "bg-white/20 text-white hover:bg-white/30"
-              : "bg-[#dde3ec] text-[#4e6987] hover:bg-[#c8cfdb]"
+              ? "bg-white/20 text-[#DCF0FF] hover:bg-white/30"
+              : "bg-[#dde3ec] text-[#0483AB] hover:bg-[#c8cfdb]"
           }`}
         >
           <X size={10} weight="bold" />
@@ -90,7 +90,7 @@ export function FilterPillButton({
         <CaretDown
           size={12}
           weight="bold"
-          className={`transition-transform ${open ? "rotate-180" : ""} ${hasValue ? "text-white" : "text-[#28415c]"}`}
+          className={`transition-transform ${open ? "rotate-180" : ""} ${hasValue ? "text-[#DCF0FF]" : "text-[#0483AB]"}`}
         />
       )}
     </button>

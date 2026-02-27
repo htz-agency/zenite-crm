@@ -13,6 +13,7 @@ import {
   OPPORTUNITY_FIELDS,
   CONTACT_FIELDS,
   ACCOUNT_FIELDS,
+  ACTIVITY_FIELDS,
 } from "./crm-settings-native-fields";
 
 /* ================================================================== */
@@ -29,18 +30,20 @@ const leadLookup = buildLookup(LEAD_FIELDS);
 const opLookup = buildLookup(OPPORTUNITY_FIELDS);
 const contactLookup = buildLookup(CONTACT_FIELDS);
 const accountLookup = buildLookup(ACCOUNT_FIELDS);
+const activityLookup = buildLookup(ACTIVITY_FIELDS);
 
 /* ================================================================== */
 /*  Public API                                                         */
 /* ================================================================== */
 
-export type ObjectType = "lead" | "oportunidade" | "contato" | "conta";
+export type ObjectType = "lead" | "oportunidade" | "contato" | "conta" | "atividade";
 
 const LOOKUPS: Record<ObjectType, FieldLookup> = {
   lead: leadLookup,
   oportunidade: opLookup,
   contato: contactLookup,
   conta: accountLookup,
+  atividade: activityLookup,
 };
 
 /** Get the NativeField definition for a given object + field key */
@@ -92,4 +95,4 @@ export function getVisibleFields(object: ObjectType): NativeField[] {
 /*  Convenience re-exports                                             */
 /* ================================================================== */
 
-export { LEAD_FIELDS, OPPORTUNITY_FIELDS, CONTACT_FIELDS, ACCOUNT_FIELDS };
+export { LEAD_FIELDS, OPPORTUNITY_FIELDS, CONTACT_FIELDS, ACCOUNT_FIELDS, ACTIVITY_FIELDS };

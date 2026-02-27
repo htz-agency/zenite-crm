@@ -479,10 +479,10 @@ export function CrmSearchResults() {
   const navigate = useNavigate();
   const { query, setQuery } = useCrmSearch();
 
-  const [leads, setLeads] = useState<CrmLead[]>(mockLeads);
-  const [accounts, setAccounts] = useState<CrmAccount[]>(mockAccounts);
-  const [contacts, setContacts] = useState<CrmContact[]>(mockContacts);
-  const [ops, setOps] = useState<CrmOp[]>(mockOps);
+  const [leads, setLeads] = useState<CrmLead[]>([]);
+  const [accounts, setAccounts] = useState<CrmAccount[]>([]);
+  const [contacts, setContacts] = useState<CrmContact[]>([]);
+  const [ops, setOps] = useState<CrmOp[]>([]);
   const [loading, setLoading] = useState(true);
 
   const [leadsPage, setLeadsPage] = useState(1);

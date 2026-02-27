@@ -58,8 +58,10 @@ import {
   ActivityItem,
   SectionToggle,
   StageBar,
-  CallLogPanel,
+  ActivityFeedPanel,
+  useEntityActivities,
 } from "./crm-detail-shared";
+import { usePermissions } from "./permission-context";
 
 /* ------------------------------------------------------------------ */
 /*  Types & Config                                                     */
@@ -235,12 +237,17 @@ const emptyAccount: AccountData = {
 };
 
 const mockActivities: Activity[] = [
-  { id: "a1", type: "compromisso", label: "Reunião de acompanhamento", date: "04/02/2026 14:00", group: "FEVEREIRO" },
-  { id: "a2", type: "tarefa", label: "Enviar relatório mensal", date: "01/02/2026 09:30", group: "FEVEREIRO" },
-  { id: "a3", type: "ligacao", label: "Ligação de follow-up", date: "28/01/2026 11:00", group: "JANEIRO" },
-  { id: "a4", type: "nota", label: "Nota sobre expansão", date: "20/01/2026 16:00", group: "JANEIRO" },
-  { id: "a5", type: "email", label: "Proposta enviada", date: "15/01/2026 10:00", group: "JANEIRO" },
-  { id: "a6", type: "mensagem", label: "Mensagem de boas-vindas", date: "10/01/2026 09:00", group: "JANEIRO" },
+  { id: "a1", type: "compromisso", label: "Reunião de acompanhamento", date: "04/02/2026 14:00", group: "FUTURO", title: "QBR Trimestral", meetingLink: "meet.google.com/qbr-2026-q1", attendees: ["gerente@empresa.com", "diretor@empresa.com"] },
+  { id: "a9", type: "compromisso", label: "Compromisso", date: "20/03/2026 09:00", group: "FUTURO", title: "Revisão de SLA", attendees: ["suporte@htz.agency", "gerente@empresa.com"], duration: "1h", notes: "Apresentar plano de melhoria do suporte" },
+  { id: "a10", type: "compromisso", label: "Compromisso", date: "15/01/2026 10:30", group: "JANEIRO", title: "Reunião de kick-off anual", meetingLink: "teams.microsoft.com/meet/kickoff2026", attendees: ["diretor@empresa.com", "cmo@empresa.com"], duration: "2h", location: "Escritório matriz" },
+  { id: "a11", type: "compromisso", label: "Compromisso", date: "10/12/2025 14:00", group: "DEZEMBRO", title: "Planejamento estratégico 2026", attendees: ["gerente@empresa.com"], notes: "Definir metas e budget para próximo ano" },
+  { id: "a2", type: "tarefa", label: "Enviar relatório mensal", date: "01/02/2026 09:30", group: "FEVEREIRO", title: "Relatório de performance Jan/2026", notes: "Incluir métricas de ROI e comparativo MoM" },
+  { id: "a3", type: "ligacao", label: "Ligação de follow-up", date: "28/01/2026 11:00", group: "JANEIRO", title: "Acompanhamento pós-entrega", duration: "9 minutos e 47 segundos" },
+  { id: "a4", type: "nota", label: "Nota sobre expansão", date: "20/01/2026 16:00", group: "JANEIRO", notes: "Conta interessada em expandir para 3 novas unidades no Q2" },
+  { id: "a7", type: "nota", label: "Nota", date: "12/01/2026 14:30", group: "JANEIRO", notes: "Conversa com o gerente regional revelou insatisfação com o tempo de resposta do suporte técnico nos últimos 2 meses. Foram registrados 14 tickets com SLA estourado. O cliente ameaçou acionar a cláusula de penalidade caso não haja melhoria até março. Propus um plano de ação com squad dedicado e reunião semanal de acompanhamento. O gerente aceitou, mas condicionou a renovação do contrato à resolução dos tickets em aberto." },
+  { id: "a8", type: "nota", label: "Nota", date: "05/01/2026 10:15", group: "JANEIRO", notes: "Novo ponto de contato financeiro: Marina Silva (marina@empresa.com). Atualizar cadastro e incluir nas próximas comunicações." },
+  { id: "a5", type: "email", label: "Proposta enviada", date: "15/01/2026 10:00", group: "JANEIRO", title: "Proposta de renovação anual", attendees: ["financeiro@empresa.com"] },
+  { id: "a6", type: "mensagem", label: "Mensagem de boas-vindas", date: "10/01/2026 09:00", group: "JANEIRO", title: "Onboarding da equipe de suporte" },
 ];
 
 const mockCalls: CallRecord[] = [
@@ -277,119 +284,7 @@ function formatCurrency(value: number): string {
 
 
 
-/* ------------------------------------------------------------------ */
-/*  Activity Panel                                                     */
-/* ------------------------------------------------------------------ */
 
-function ActivityPanel({ activities }: { activities: Activity[] }) {
-  const [activityTab, setActivityTab] = useState<"feed" | "engajamento">("feed");
-
-  const grouped: { group: string; items: Activity[] }[] = [];
-  activities.forEach((a) => {
-    const existing = grouped.find((g) => g.group === a.group);
-    if (existing) existing.items.push(a);
-    else grouped.push({ group: a.group, items: [a] });
-  });
-
-  return (
-    <div className="flex flex-col h-full">
-      <div className="p-[12px] pb-0">
-        <div
-          className="flex gap-[4px] h-[44px] items-center justify-center overflow-hidden p-[4px] rounded-[100px] bg-[#f6f7f9] relative"
-          style={{
-            boxShadow:
-              "inset 0px -0.5px 1px 0px rgba(255,255,255,0.3), inset 0px -0.5px 1px 0px rgba(255,255,255,0.25), inset 1px 1.5px 4px 0px rgba(0,0,0,0.08), inset 1px 1.5px 4px 0px rgba(0,0,0,0.1)",
-          }}
-        >
-          {(["feed", "engajamento"] as const).map((tab) => {
-            const isActive = activityTab === tab;
-            return (
-              <button
-                key={tab}
-                onClick={() => setActivityTab(tab)}
-                className={`flex-1 h-[36px] flex items-center justify-center gap-[3px] rounded-[20px] cursor-pointer transition-colors duration-200 relative z-[1] ${
-                  isActive ? "" : "text-[#98989d] hover:text-[#4E6987] hover:bg-[#e8eaee]"
-                }`}
-              >
-                {isActive && (
-                  <motion.div
-                    layoutId="acct-activity-tab"
-                    className="absolute inset-0 bg-[#28415C] rounded-[20px]"
-                    transition={{ type: "spring", stiffness: 500, damping: 35, mass: 0.8 }}
-                    style={{
-                      border: "0.5px solid rgba(200,207,219,0.6)",
-                      boxShadow: "0px 2px 4px 0px rgba(18,34,50,0.3)",
-                    }}
-                  />
-                )}
-                {tab === "feed" && (
-                  <ListBullets size={15} weight={isActive ? "fill" : "duotone"} className={`relative z-[1] ${isActive ? "text-[#f6f7f9]" : ""}`} />
-                )}
-                {tab === "engajamento" && (
-                  <FunnelSimple size={15} weight={isActive ? "fill" : "duotone"} className={`relative z-[1] ${isActive ? "text-[#f6f7f9]" : ""}`} />
-                )}
-                <span
-                  className={`relative z-[1] uppercase ${isActive ? "text-[#f6f7f9]" : ""}`}
-                  style={{ fontSize: 10, fontWeight: 700, letterSpacing: 0.5, lineHeight: "20px", ...fontFeature }}
-                >
-                  {tab}
-                </span>
-              </button>
-            );
-          })}
-        </div>
-      </div>
-
-      <div className="flex items-center gap-[6px] px-[20px] py-[12px]">
-        <div className="flex items-center gap-[6px] flex-1 min-w-0 cursor-pointer">
-          <div className="flex items-center justify-center size-[28px] rounded-[8px] bg-[#dde3ec] shrink-0">
-            <ListBullets size={17} weight="duotone" className="text-[#4e6987]" />
-          </div>
-          <span
-            className="text-[#4e6987]"
-            style={{ fontSize: 18, fontWeight: 500, letterSpacing: -0.5, lineHeight: "22px", ...fontFeature }}
-          >
-            Atividades
-          </span>
-          <CaretDown size={14} weight="bold" className="text-[#4e6987] shrink-0" />
-        </div>
-        <button className="flex items-center justify-center size-[28px] rounded-full text-[#28415c] hover:bg-[#f6f7f9] transition-colors cursor-pointer">
-          <FunnelSimple size={17} weight="duotone" />
-        </button>
-        <button className="flex items-center justify-center size-[28px] rounded-full text-[#28415c] hover:bg-[#f6f7f9] transition-colors cursor-pointer">
-          <GearSix size={17} weight="duotone" />
-        </button>
-      </div>
-
-      <div className="flex-1 overflow-auto px-[4px]">
-        <div className="flex flex-col gap-[4px] items-center">
-          {grouped.map((group) => (
-            <div key={group.group} className="w-full flex flex-col gap-[4px] items-center">
-              <span
-                className="text-[#64676c] uppercase text-center"
-                style={{ fontSize: 10, fontWeight: 700, letterSpacing: 0.5, lineHeight: "20px", ...fontFeature }}
-              >
-                {group.group}
-              </span>
-              {group.items.map((a) => (
-                <ActivityItem key={a.id} activity={a} />
-              ))}
-            </div>
-          ))}
-        </div>
-      </div>
-
-      <div className="p-[16px] flex justify-center">
-        <button className="flex items-center justify-center gap-[4px] h-[40px] px-[20px] rounded-[500px] bg-[#DCF0FF] text-[#28415c] cursor-pointer hover:bg-[#c4e4fa] transition-colors">
-          <Plus size={16} weight="bold" />
-          <span style={{ fontSize: 15, fontWeight: 500, letterSpacing: -0.5, lineHeight: "22px", ...fontFeature }}>
-            Adicionar atividade
-          </span>
-        </button>
-      </div>
-    </div>
-  );
-}
 
 /* ------------------------------------------------------------------ */
 /*  Tab: Detalhes (unificado — Empresa / Pessoal)                      */
@@ -1190,6 +1085,7 @@ export function CrmAccountDetail() {
   const [accLoading, setAccLoading] = useState(true);
   const { customFields, customValues, updateCustomValue } = useCustomFields("conta", id);
   const { isVisible: v, isRequired: rq, getLabel: fl } = useFieldVisibility("conta");
+  const { can } = usePermissions();
 
   useEffect(() => {
     if (!id) return;
@@ -1319,8 +1215,9 @@ export function CrmAccountDetail() {
         entity_type: "conta",
         entity_id: account.id,
         field_name: "stage",
-        current_value: account.stage,
-        created_at: threeDaysAgo.toISOString(),
+        old_value: null,
+        new_value: account.stage,
+        changed_at: threeDaysAgo.toISOString(),
         changed_by: account.createdBy,
       });
       setFieldHistoryEntries(
@@ -1394,8 +1291,13 @@ export function CrmAccountDetail() {
     [account.id]
   );
 
-  const rightPanel: "calls" | "activities" | "none" =
-    activeTab === "detalhes" ? "calls" : activeTab === "contatos" || activeTab === "oportunidades" || activeTab === "propostas" ? "activities" : "none";
+  const showRightPanel = activeTab === "detalhes" || activeTab === "contatos" || activeTab === "oportunidades" || activeTab === "propostas";
+
+  // Load real activities for this account (falls back to mock data)
+  const {
+    activities: realActivities,
+    groupedActivities,
+  } = useEntityActivities("conta", id, mockActivities);
 
   if (accLoading) {
     return (
@@ -1456,8 +1358,12 @@ export function CrmAccountDetail() {
             <div className="hidden lg:flex items-center gap-[10px] bg-[#f6f7f9] rounded-[100px] h-[44px] px-[5px] py-[0px]">
               <ActionButton><Tag size={18} weight="bold" /></ActionButton>
               <ActionButton><ClockCounterClockwise size={18} weight="bold" /></ActionButton>
-              <ActionButton><PencilSimple size={18} weight="bold" /></ActionButton>
-              <ActionButton><Trash size={18} weight="bold" /></ActionButton>
+              {can("contas", "editar", account.owner) && (
+                <ActionButton><PencilSimple size={18} weight="bold" /></ActionButton>
+              )}
+              {can("contas", "excluir", account.owner) && (
+                <ActionButton><Trash size={18} weight="bold" /></ActionButton>
+              )}
               <ActionButton><LinkIcon size={18} weight="bold" /></ActionButton>
               <ActionButton><CopySimple size={18} weight="bold" /></ActionButton>
               <ActionButton onClick={() => {
@@ -1581,10 +1487,14 @@ export function CrmAccountDetail() {
         </div>
 
         {/* RIGHT COLUMN */}
-        {rightPanel !== "none" && (
+        {showRightPanel && (
           <div className="hidden xl:flex flex-col w-[306px] shrink-0 bg-white rounded-[16px] overflow-hidden">
-            {rightPanel === "calls" && <CallLogPanel calls={mockCalls} layoutId="acct-call-tab" />}
-            {rightPanel === "activities" && <ActivityPanel activities={mockActivities} />}
+            <ActivityFeedPanel
+              activities={realActivities}
+              groupedActivities={groupedActivities}
+              layoutId="acct-activity-tab"
+              calls={mockCalls}
+            />
           </div>
         )}
       </div>

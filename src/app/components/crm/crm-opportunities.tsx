@@ -62,6 +62,7 @@ import {
   listAccounts,
 } from "./crm-api";
 import { useCrmSearch } from "./crm-search-context";
+import { OwnerCell } from "./owner-cell";
 
 /* ------------------------------------------------------------------ */
 /*  Types                                                              */
@@ -465,8 +466,8 @@ function FilterDropdownPill({
         onClick={() => setOpen((v) => !v)}
         className={`flex items-center gap-[4px] h-[34px] px-[16px] rounded-[100px] transition-colors cursor-pointer whitespace-nowrap ${
           hasValue
-            ? "bg-[#07abde] text-white"
-            : "bg-[#f6f7f9] text-[#28415c] hover:bg-[#dcf0ff]"
+            ? "bg-[#07ABDE] text-[#DCF0FF]"
+            : "bg-[#F6F7F9] text-[#0483AB] hover:bg-[#DCF0FF] hover:text-[#0483AB]"
         }`}
       >
         {singleSelect && hasValue && condition?.values[0] === "kanban" && <Kanban size={13} weight="fill" />}
@@ -505,7 +506,7 @@ function FilterDropdownPill({
                     className="flex items-center gap-[8px] px-[10px] py-[7px] rounded-[12px] hover:bg-[#f6f7f9] transition-colors cursor-pointer text-left w-full"
                   >
                     <div className={`size-[14px] ${singleSelect ? "rounded-full" : "rounded-[4px]"} border-[1.5px] flex items-center justify-center shrink-0 transition-colors ${
-                      checked ? "border-[#23E6B2] bg-[#23E6B2]" : "border-[#98989d] bg-transparent"
+                      checked ? "border-[#07ABDE] bg-[#07ABDE]" : "border-[#98989d] bg-transparent"
                     }`}>
                       {checked && (
                         singleSelect
@@ -577,7 +578,7 @@ function CircleCheckbox({ checked, onChange }: { checked: boolean; onChange: () 
     >
       <div
         className={`absolute inset-0 rounded-full border-[1.5px] border-solid transition-colors ${
-          checked ? "border-[#3ccea7] bg-[#3ccea7]" : "border-[#c8cfdb] bg-transparent backdrop-blur-[20px]"
+          checked ? "border-[#07ABDE] bg-[#07ABDE]" : "border-[#c8cfdb] bg-transparent backdrop-blur-[20px]"
         }`}
       />
       {checked && (
@@ -661,7 +662,7 @@ function OpCardContent({
             }`}
           >
             <div className={`size-[14px] rounded-full border-[1.5px] transition-colors flex items-center justify-center ${
-              isSelected ? "border-[#23E6B2] bg-[#23E6B2]" : "border-[#c8cfdb] bg-transparent"
+              isSelected ? "border-[#07ABDE] bg-[#07ABDE]" : "border-[#c8cfdb] bg-transparent"
             }`}>
               {isSelected && (
                 <svg width="8" height="8" viewBox="0 0 8 8" fill="none">
@@ -742,12 +743,7 @@ function OpCardContent({
       <div className="flex items-center gap-[10px] mb-[8px]">
         <div className="flex items-center gap-[4px] min-w-0 flex-1">
           <UserCircle size={12} weight="duotone" className="text-[#98989d] shrink-0" />
-          <span
-            className="text-[#98989d] truncate"
-            style={{ fontSize: 10, fontWeight: 600, letterSpacing: -0.2, lineHeight: "14px", ...fontFeature }}
-          >
-            {op.owner}
-          </span>
+          <OwnerCell ownerId={op.owner} textOnly fontSize={10} textClass="text-[#98989d]" />
         </div>
         <div className="flex items-center gap-[4px] shrink-0">
           <CalendarBlank size={12} weight="duotone" className="text-[#98989d]" />
@@ -870,7 +866,7 @@ function DraggableOpCard({
       ref={(node) => { dragRef(node); }}
       onClick={() => navigate(`/crm/oportunidades/${op.id}`)}
       className={`bg-white p-[12px] cursor-grab hover:shadow-[0px_2px_4px_0px_rgba(18,34,50,0.3)] transition-all active:bg-[#F6F7F9] group/card rounded-[16px] active:cursor-grabbing ${
-        isSelected ? "ring-2 ring-[#23E6B2] ring-inset" : ""
+        isSelected ? "ring-2 ring-[#07ABDE] ring-inset" : ""
       }`}
     >
       <OpCardContent op={op} activeMenu={activeMenu} setActiveMenu={setActiveMenu} menuRef={menuRef} navigate={navigate} isSelected={isSelected} onToggleSelect={onToggleSelect} />
@@ -906,7 +902,7 @@ function DroppableColumn({
       className={`flex flex-col shrink-0 overflow-hidden transition-all ${
         collapsed ? "min-w-0 flex-none" : "min-w-[216px] flex-1"
       } ${
-        isOver && canDrop ? "ring-2 ring-[#23E6B2] ring-inset rounded-xl" : ""
+        isOver && canDrop ? "ring-2 ring-[#07ABDE] ring-inset rounded-xl" : ""
       }`}
     >
       {children}
@@ -984,8 +980,8 @@ function StageHeaderPill({ stage }: { stage: OpStage }) {
 export function CrmOpportunities() {
   const navigate = useNavigate();
   const { query: globalSearch } = useCrmSearch();
-  const [ops, setOps] = useState<Opportunity[]>(mockOpportunities);
-  const [loading, setLoading] = useState(false);
+  const [ops, setOps] = useState<Opportunity[]>([]);
+  const [loading, setLoading] = useState(true);
   const [viewMode, setViewMode] = useState<"kanban" | "tabela">("kanban");
   const [titleMenuOpen, setTitleMenuOpen] = useState(false);
   const [activeMenu, setActiveMenu] = useState<string | null>(null);
@@ -1006,7 +1002,7 @@ export function CrmOpportunities() {
   const [viewNameInput, setViewNameInput] = useState("");
   const filterPanelRef = useRef<HTMLDivElement>(null);
 
-  /* ── Load data from Supabase ── */
+  /* ─��� Load data from Supabase ── */
   useEffect(() => {
     let cancelled = false;
     (async () => {
@@ -1090,8 +1086,10 @@ export function CrmOpportunities() {
           return mapped;
         }));
       } catch (err) {
-        // Network error — mock data is already displayed, just log
         console.warn("Could not load opportunities from server, using local data:", err);
+        setOps(mockOpportunities);
+      } finally {
+        if (!cancelled) setLoading(false);
       }
     })();
     return () => { cancelled = true; };
@@ -1426,13 +1424,13 @@ export function CrmOpportunities() {
           {/* Right: action buttons */}
           <div className="hidden lg:flex items-center gap-[15px]">
             <div className="flex items-center gap-[10px] bg-[#f6f7f9] rounded-[100px] h-[44px] px-[5px] py-[0px]">
-              <button className="flex items-center justify-center size-[32px] rounded-full hover:bg-[#DCF0FF] active:bg-[#07abde] active:text-[#f6f7f9] transition-colors text-[#28415c]">
+              <button className="flex items-center justify-center size-[32px] rounded-full bg-transparent text-[#0483AB] hover:bg-[#DCF0FF] hover:text-[#0483AB] transition-colors cursor-pointer">
                 <LinkIcon size={18} />
               </button>
-              <button className="flex items-center justify-center size-[32px] rounded-full hover:bg-[#DCF0FF] active:bg-[#07abde] active:text-[#f6f7f9] transition-colors text-[#28415c]">
+              <button className="flex items-center justify-center size-[32px] rounded-full bg-transparent text-[#0483AB] hover:bg-[#DCF0FF] hover:text-[#0483AB] transition-colors cursor-pointer">
                 <ArrowSquareDownRight size={18} />
               </button>
-              <button className="flex items-center justify-center size-[32px] rounded-full hover:bg-[#DCF0FF] active:bg-[#07abde] active:text-[#f6f7f9] transition-colors text-[#28415c]">
+              <button className="flex items-center justify-center size-[32px] rounded-full bg-transparent text-[#0483AB] hover:bg-[#DCF0FF] hover:text-[#0483AB] transition-colors cursor-pointer">
                 <Columns size={18} />
               </button>
             </div>
@@ -1573,8 +1571,8 @@ export function CrmOpportunities() {
             }}
             className={`relative flex items-center justify-center w-[34px] h-[34px] rounded-full transition-colors cursor-pointer ${
               isFilterPanelOpen || activeFilters.length > 0
-                ? "bg-[#28415c] text-white"
-                : "bg-[#dcf0ff] text-[#28415c] hover:bg-[#cce7fb]"
+                ? "bg-[#07ABDE] text-[#DCF0FF]"
+                : "bg-[#F6F7F9] text-[#0483AB] hover:bg-[#DCF0FF] hover:text-[#0483AB]"
             }`}
           >
             {isFilterPanelOpen ? <X size={14} weight="bold" /> : <FunnelSimple size={16} weight={activeFilters.length > 0 ? "fill" : "bold"} />}
@@ -1584,7 +1582,7 @@ export function CrmOpportunities() {
           {activeFilters.length > 0 && !isFilterPanelOpen && (
             <button
               onClick={handleClearFilters}
-              className="flex items-center gap-[4px] h-[28px] px-[10px] rounded-[500px] bg-[#dcf0ff] text-[#28415c] hover:bg-[#cce7fb] transition-colors cursor-pointer"
+              className="flex items-center gap-[4px] h-[28px] px-[10px] rounded-[500px] bg-[#F6F7F9] text-[#0483AB] hover:bg-[#DCF0FF] hover:text-[#0483AB] transition-colors cursor-pointer"
             >
               <span
                 className="font-bold uppercase tracking-[0.5px]"
@@ -1601,10 +1599,10 @@ export function CrmOpportunities() {
           {/* Metrics toggle */}
           <button
             onClick={() => setShowMetrics((v) => !v)}
-            className={`relative flex items-center gap-[5px] h-[34px] px-[14px] rounded-[500px] transition-all cursor-pointer ${
+            className={`flex items-center gap-[5px] h-[34px] px-[14px] rounded-[500px] transition-all cursor-pointer ${
               showMetrics
-                ? "bg-[#28415c] text-white"
-                : "bg-[#f6f7f9] text-[#98989d] hover:text-[#4e6987] hover:bg-[#dcf0ff]"
+                ? "bg-[#07ABDE] text-[#DCF0FF]"
+                : "bg-[#F6F7F9] text-[#0483AB] hover:bg-[#DCF0FF] hover:text-[#0483AB]"
             }`}
           >
             <span
@@ -1618,10 +1616,10 @@ export function CrmOpportunities() {
           {/* Show Lost toggle */}
           <button
             onClick={() => setShowLost((v) => !v)}
-            className={`relative flex items-center gap-[5px] h-[34px] px-[14px] rounded-[500px] transition-all cursor-pointer ${
+            className={`flex items-center gap-[5px] h-[34px] px-[14px] rounded-[500px] transition-all cursor-pointer ${
               showLost
-                ? "bg-[#28415c] text-white"
-                : "bg-[#f6f7f9] text-[#98989d] hover:text-[#4e6987] hover:bg-[#dcf0ff]"
+                ? "bg-[#07ABDE] text-[#DCF0FF]"
+                : "bg-[#F6F7F9] text-[#0483AB] hover:bg-[#DCF0FF] hover:text-[#0483AB]"
             }`}
           >
             <span
@@ -1703,7 +1701,7 @@ export function CrmOpportunities() {
             <div className="flex items-center gap-[6px] mt-[14px]">
               <button
                 onClick={handleApplyFilters}
-                className="flex items-center gap-[4px] h-[34px] px-[16px] rounded-[100px] bg-[#f6f7f9] text-[#28415c] hover:bg-[#dcf0ff] transition-colors cursor-pointer"
+                className="flex items-center gap-[4px] h-[34px] px-[16px] rounded-[100px] bg-[#3CCEA7] text-white hover:bg-[#30B893] transition-colors cursor-pointer"
               >
                 <span
                   className="font-bold uppercase tracking-[0.5px]"
@@ -1716,7 +1714,7 @@ export function CrmOpportunities() {
               {!savingViewName ? (
                 <button
                   onClick={() => setSavingViewName(true)}
-                  className="flex items-center gap-[4px] h-[34px] px-[16px] rounded-[100px] bg-[#f6f7f9] text-[#28415c] hover:bg-[#dcf0ff] transition-colors cursor-pointer"
+                  className="flex items-center gap-[4px] h-[34px] px-[16px] rounded-[100px] bg-[#F6F7F9] text-[#0483AB] hover:bg-[#DCF0FF] hover:text-[#0483AB] transition-colors cursor-pointer"
                 >
                   <FloppyDisk size={13} weight="bold" />
                   <span
@@ -1739,13 +1737,13 @@ export function CrmOpportunities() {
                   />
                   <button
                     onClick={handleSaveView}
-                    className="flex items-center justify-center size-[34px] rounded-full bg-[#dcf0ff] text-[#07abde] hover:bg-[#cce7fb] transition-colors cursor-pointer"
+                    className="flex items-center justify-center size-[34px] rounded-full bg-[#3CCEA7] text-white hover:bg-[#30B893] transition-colors cursor-pointer"
                   >
                     <Check size={12} weight="bold" />
                   </button>
                   <button
                     onClick={() => { setSavingViewName(false); setViewNameInput(""); }}
-                    className="flex items-center justify-center size-[34px] rounded-full text-[#ff8c76] hover:bg-[#ffedeb] transition-colors cursor-pointer"
+                    className="flex items-center justify-center size-[34px] rounded-full bg-[#F6F7F9] text-[#F56233] hover:bg-[#FFEDEB] hover:text-[#F56233] transition-colors cursor-pointer"
                   >
                     <X size={12} weight="bold" />
                   </button>
@@ -2080,7 +2078,7 @@ export function CrmOpportunities() {
                           </div>
 
                           <div
-                            className="truncate text-[#07abde]"
+                            className="truncate text-[#0483AB]"
                             style={{ fontSize: 12, fontWeight: 500, letterSpacing: -0.5, ...fontFeature }}
                           >
                             {op.name}
@@ -2107,12 +2105,7 @@ export function CrmOpportunities() {
                             {formatCompactCurrency(op.value)}
                           </div>
 
-                          <div
-                            className="truncate text-[#28415c]"
-                            style={{ fontSize: 12, fontWeight: 500, letterSpacing: -0.5, ...fontFeature }}
-                          >
-                            {op.owner}
-                          </div>
+                          <OwnerCell ownerId={op.owner} />
 
                           <div
                             className="truncate text-[#28415c]"

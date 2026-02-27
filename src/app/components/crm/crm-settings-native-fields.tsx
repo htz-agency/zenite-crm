@@ -91,7 +91,7 @@ export interface NativeField {
   options?: { value: string; label: string; color: string }[];
 }
 
-type ObjectType = "lead" | "oportunidade" | "contato" | "conta";
+type ObjectType = "lead" | "oportunidade" | "contato" | "conta" | "atividade";
 
 /* ================================================================== */
 /*  Field type display helpers                                         */
@@ -435,6 +435,155 @@ export const ACCOUNT_FIELDS: NativeField[] = [
 ];
 
 /* ================================================================== */
+/*  Activity fields                                                    */
+/* ================================================================== */
+
+export const ACTIVITY_FIELDS: NativeField[] = [
+  // ── Campos Gerais ──
+  { key: "at_type",              label: "Tipo de Atividade",          fieldType: "type",          section: "Campos Gerais",              editable: true,  required: true,  visible: true, description: "compromisso, tarefa, ligacao, nota, mensagem, email", options: [
+    { value: "compromisso", label: "Compromisso", color: "#FF8C76" },
+    { value: "tarefa", label: "Tarefa", color: "#8C8CD4" },
+    { value: "ligacao", label: "Ligação", color: "#3CCEA7" },
+    { value: "nota", label: "Nota", color: "#EAC23D" },
+    { value: "mensagem", label: "Mensagem", color: "#07ABDE" },
+    { value: "email", label: "Email", color: "#4E6987" },
+  ] },
+  { key: "at_subject",           label: "Assunto",                    fieldType: "text",          section: "Campos Gerais",              editable: true,  required: true,  visible: true },
+  { key: "at_description",       label: "Descrição",                  fieldType: "textarea",      section: "Campos Gerais",              editable: true,  required: false, visible: true },
+  { key: "at_status",            label: "Status",                     fieldType: "contextual",    section: "Campos Gerais",              editable: true,  required: false, visible: true, description: "Varia por tipo de atividade", options: [
+    { value: "agendado", label: "Agendado", color: "#07abde" },
+    { value: "confirmado", label: "Confirmado", color: "#3ccea7" },
+    { value: "em_andamento", label: "Em Andamento", color: "#eac23d" },
+    { value: "concluido", label: "Concluído", color: "#3eb370" },
+    { value: "cancelado", label: "Cancelado", color: "#ff8c76" },
+    { value: "nao_iniciada", label: "Não Iniciada", color: "#98989d" },
+    { value: "aguardando", label: "Aguardando", color: "#8c8cd4" },
+    { value: "nao_atendida", label: "Não Atendida", color: "#f56233" },
+    { value: "rascunho", label: "Rascunho", color: "#98989d" },
+    { value: "publicada", label: "Publicada", color: "#3ccea7" },
+    { value: "enviada", label: "Enviada", color: "#07abde" },
+    { value: "entregue", label: "Entregue", color: "#3eb370" },
+    { value: "lida", label: "Lida", color: "#8c8cd4" },
+    { value: "falha", label: "Falha", color: "#f56233" },
+  ] },
+  { key: "at_priority",          label: "Prioridade",                 fieldType: "type",          section: "Campos Gerais",              editable: true,  required: false, visible: true, description: "Baixa, Normal, Alta", options: [
+    { value: "baixa", label: "Baixa", color: "#98989d" },
+    { value: "normal", label: "Normal", color: "#07abde" },
+    { value: "alta", label: "Alta", color: "#ff8c76" },
+  ] },
+  { key: "at_owner",             label: "Proprietário",               fieldType: "user",          section: "Campos Gerais",              editable: true,  required: false, visible: true },
+  { key: "at_assigned_to",       label: "Atribuído a",                fieldType: "user",          section: "Campos Gerais",              editable: true,  required: false, visible: true },
+  { key: "at_body",              label: "Corpo / Conteúdo",           fieldType: "textarea",      section: "Campos Gerais",              editable: true,  required: false, visible: true, description: "Corpo de notas, mensagens e emails" },
+  { key: "at_tags",              label: "Tags",                       fieldType: "multipicklist", section: "Campos Gerais",              editable: true,  required: false, visible: true, description: "Importante, Follow-up, Urgente, Interno", options: [
+    { value: "importante", label: "Importante", color: "#ff8c76" },
+    { value: "follow-up", label: "Follow-up", color: "#07abde" },
+    { value: "urgente", label: "Urgente", color: "#f56233" },
+    { value: "interno", label: "Interno", color: "#8c8cd4" },
+  ] },
+
+  // ── Datas e Horários ──
+  { key: "at_start_date",        label: "Data/Hora de Início",        fieldType: "datetime",      section: "Datas e Horários",           editable: true,  required: false, visible: true },
+  { key: "at_end_date",          label: "Data/Hora de Término",       fieldType: "datetime",      section: "Datas e Horários",           editable: true,  required: false, visible: true },
+  { key: "at_due_date",          label: "Data de Vencimento",         fieldType: "datetime",      section: "Datas e Horários",           editable: true,  required: false, visible: true },
+  { key: "at_completed_at",      label: "Concluído Em",               fieldType: "datetime",      section: "Datas e Horários",           editable: false, required: false, visible: true },
+  { key: "at_all_day",           label: "Dia Inteiro",                fieldType: "boolean",       section: "Datas e Horários",           editable: true,  required: false, visible: true },
+  { key: "at_is_private",        label: "Privado",                    fieldType: "boolean",       section: "Datas e Horários",           editable: true,  required: false, visible: true },
+
+  // ── Vínculo com Entidades ──
+  { key: "at_related_to_type",   label: "Tipo de Entidade Vinculada", fieldType: "type",          section: "Vínculo com Entidades",      editable: true,  required: false, visible: true, description: "Lead, Oportunidade, Conta, Contato", options: [
+    { value: "lead", label: "Lead", color: "#07abde" },
+    { value: "oportunidade", label: "Oportunidade", color: "#3ccea7" },
+    { value: "conta", label: "Conta", color: "#eac23d" },
+    { value: "contato", label: "Contato", color: "#8c8cd4" },
+  ] },
+  { key: "at_related_to_id",     label: "ID da Entidade Vinculada",   fieldType: "text",          section: "Vínculo com Entidades",      editable: true,  required: false, visible: true },
+  { key: "at_related_to_name",   label: "Nome da Entidade Vinculada", fieldType: "text",          section: "Vínculo com Entidades",      editable: true,  required: false, visible: false },
+  { key: "at_contact_id",        label: "ID do Contato",              fieldType: "text",          section: "Vínculo com Entidades",      editable: true,  required: false, visible: true },
+  { key: "at_contact_name",      label: "Nome do Contato",            fieldType: "text",          section: "Vínculo com Entidades",      editable: true,  required: false, visible: true },
+  { key: "at_location",          label: "Localização",                fieldType: "text",          section: "Vínculo com Entidades",      editable: true,  required: false, visible: true },
+
+  // ── Compromisso (Google Calendar / Meet) ──
+  { key: "at_meet_link",         label: "Link do Google Meet",        fieldType: "link",          section: "Compromisso",                editable: true,  required: false, visible: true },
+  { key: "at_google_event_id",   label: "ID Evento Google Calendar",  fieldType: "text",          section: "Compromisso",                editable: false, required: false, visible: true },
+  { key: "at_timezone",          label: "Fuso Horário",               fieldType: "text",          section: "Compromisso",                editable: true,  required: false, visible: true, description: "Ex: America/Sao_Paulo" },
+  { key: "at_recurrence",        label: "Recorrência",                fieldType: "combobox",      section: "Compromisso",                editable: true,  required: false, visible: true, description: "Diário, Semanal, Mensal", options: [
+    { value: "Diário", label: "Diário", color: "#07abde" },
+    { value: "Semanal", label: "Semanal", color: "#3ccea7" },
+    { value: "Quinzenal", label: "Quinzenal", color: "#8c8cd4" },
+    { value: "Mensal", label: "Mensal", color: "#eac23d" },
+  ] },
+  { key: "at_is_recurring",      label: "É Recorrente",               fieldType: "boolean",       section: "Compromisso",                editable: true,  required: false, visible: true },
+  { key: "at_recurrence_interval", label: "Intervalo de Recorrência", fieldType: "number",        section: "Compromisso",                editable: true,  required: false, visible: false },
+  { key: "at_attendees",         label: "Participantes",              fieldType: "multipicklist", section: "Compromisso",                editable: true,  required: false, visible: true, description: "JSONB [{name, email, organizer?, rsvp?}]" },
+  { key: "at_reminder",          label: "Lembrete",                   fieldType: "combobox",      section: "Compromisso",                editable: true,  required: false, visible: true, description: "Tempo antes do evento", options: [
+    { value: "5 minutos antes", label: "5 minutos antes", color: "#07abde" },
+    { value: "15 minutos antes", label: "15 minutos antes", color: "#3ccea7" },
+    { value: "30 minutos antes", label: "30 minutos antes", color: "#eac23d" },
+    { value: "1 hora antes", label: "1 hora antes", color: "#8c8cd4" },
+    { value: "1 dia antes", label: "1 dia antes", color: "#ff8c76" },
+  ] },
+  { key: "at_busy_status",       label: "Disponibilidade",            fieldType: "type",          section: "Compromisso",                editable: true,  required: false, visible: true, description: "Ocupado, Livre, Provisório", options: [
+    { value: "ocupado", label: "Ocupado", color: "#ff8c76" },
+    { value: "livre", label: "Livre", color: "#3ccea7" },
+    { value: "provisório", label: "Provisório", color: "#eac23d" },
+  ] },
+  { key: "at_visibility",        label: "Visibilidade do Evento",     fieldType: "type",          section: "Compromisso",                editable: true,  required: false, visible: true, description: "Padrão, Privado, Público", options: [
+    { value: "padrao", label: "Padrão", color: "#07abde" },
+    { value: "privado", label: "Privado", color: "#8c8cd4" },
+    { value: "publico", label: "Público", color: "#3ccea7" },
+  ] },
+  { key: "at_calendar_name",     label: "Nome do Calendário",         fieldType: "text",          section: "Compromisso",                editable: true,  required: false, visible: true, description: "Ex: Zenite CRM" },
+
+  // ── Ligação ──
+  { key: "at_phone",             label: "Telefone",                   fieldType: "phone",         section: "Ligação",                    editable: true,  required: false, visible: true },
+  { key: "at_call_type",         label: "Tipo de Ligação",            fieldType: "type",          section: "Ligação",                    editable: true,  required: false, visible: true, description: "Entrada, Saída, Interna", options: [
+    { value: "entrada", label: "Entrada", color: "#3ccea7" },
+    { value: "saida", label: "Saída", color: "#07abde" },
+    { value: "interna", label: "Interna", color: "#8c8cd4" },
+  ] },
+  { key: "at_call_direction",    label: "Direção",                    fieldType: "type",          section: "Ligação",                    editable: true,  required: false, visible: true, description: "Entrada, Saída", options: [
+    { value: "entrada", label: "Entrada", color: "#3ccea7" },
+    { value: "saida", label: "Saída", color: "#07abde" },
+  ] },
+  { key: "at_call_duration",     label: "Duração (segundos)",         fieldType: "number",        section: "Ligação",                    editable: true,  required: false, visible: true },
+  { key: "at_call_result",       label: "Resultado da Ligação",       fieldType: "text",          section: "Ligação",                    editable: true,  required: false, visible: true },
+
+  // ── Mensagem ──
+  { key: "at_channel",           label: "Canal",                      fieldType: "type",          section: "Mensagem",                   editable: true,  required: false, visible: true, description: "WhatsApp, SMS, Chat Interno, Telegram", options: [
+    { value: "whatsapp", label: "WhatsApp", color: "#3eb370" },
+    { value: "sms", label: "SMS", color: "#07abde" },
+    { value: "chat_interno", label: "Chat Interno", color: "#8c8cd4" },
+    { value: "telegram", label: "Telegram", color: "#07abde" },
+  ] },
+  { key: "at_recipient",         label: "Destinatário",               fieldType: "text",          section: "Mensagem",                   editable: true,  required: false, visible: true },
+  { key: "at_recipient_phone",   label: "Telefone do Destinatário",   fieldType: "phone",         section: "Mensagem",                   editable: true,  required: false, visible: true },
+  { key: "at_sent_at",           label: "Enviado Em",                 fieldType: "datetime",      section: "Mensagem",                   editable: false, required: false, visible: true },
+  { key: "at_read_at",           label: "Lido Em",                    fieldType: "datetime",      section: "Mensagem",                   editable: false, required: false, visible: true },
+
+  // ── Nota ──
+  { key: "at_note_visibility",   label: "Visibilidade da Nota",       fieldType: "type",          section: "Nota",                       editable: true,  required: false, visible: true, description: "Pública, Privada", options: [
+    { value: "publica", label: "Pública", color: "#3ccea7" },
+    { value: "privada", label: "Privada", color: "#8c8cd4" },
+  ] },
+  { key: "at_shared_with",       label: "Compartilhado Com",          fieldType: "multipicklist", section: "Nota",                       editable: true,  required: false, visible: true, description: "JSONB — array de user IDs" },
+  { key: "at_version",           label: "Versão",                     fieldType: "number",        section: "Nota",                       editable: false, required: false, visible: true },
+
+  // ── Informações da Atividade ──
+  { key: "at_updated_at",        label: "Última Atualização",         fieldType: "datetime",      section: "Informações da Atividade",   editable: false, required: false, visible: true },
+  { key: "at_created_at",        label: "Criado Em",                  fieldType: "datetime",      section: "Informações da Atividade",   editable: false, required: false, visible: true },
+  { key: "at_updated_by",        label: "Última Atualização Por",     fieldType: "user",          section: "Informações da Atividade",   editable: false, required: false, visible: true },
+  { key: "at_created_by",        label: "Criado Por",                 fieldType: "user",          section: "Informações da Atividade",   editable: false, required: false, visible: true },
+
+  // ── Informações do Sistema ──
+  { key: "at_id",                label: "ID do Registro",             fieldType: "id",            section: "Informações do Sistema",      editable: false, required: false, visible: true },
+  { key: "at_entity_type",       label: "Entity Type (Legacy)",       fieldType: "text",          section: "Informações do Sistema",      editable: false, required: false, visible: false },
+  { key: "at_entity_id",         label: "Entity ID (Legacy)",         fieldType: "text",          section: "Informações do Sistema",      editable: false, required: false, visible: false },
+  { key: "at_label",             label: "Label (Legacy)",             fieldType: "text",          section: "Informações do Sistema",      editable: false, required: false, visible: false },
+  { key: "at_date",              label: "Date (Legacy)",              fieldType: "text",          section: "Informações do Sistema",      editable: false, required: false, visible: false },
+  { key: "at_group",             label: "Group (Legacy)",             fieldType: "text",          section: "Informações do Sistema",      editable: false, required: false, visible: false },
+];
+
+/* ================================================================== */
 /*  HorizontalDivider                                                  */
 /* ================================================================== */
 
@@ -456,6 +605,7 @@ const OBJECT_TABLE: Record<ObjectType, string> = {
   oportunidade: "crm_opportunities",
   contato: "crm_contacts",
   conta: "crm_accounts",
+  atividade: "crm_activities",
 };
 
 /** Key prefix per object type */
@@ -464,6 +614,7 @@ const OBJECT_PREFIX: Record<ObjectType, string> = {
   oportunidade: "op_",
   contato: "ct_",
   conta: "ac_",
+  atividade: "at_",
 };
 
 /** Overrides where the column name doesn't match "key minus prefix" */
@@ -489,6 +640,10 @@ const COLUMN_OVERRIDES: Record<string, string> = {
   ac_mkt_conversao: "mkt_ultima_conversao",
   ac_last_viewed: "last_viewed_date",
   ac_last_ref: "last_referenced_date",
+  // Activities
+  at_id: "id",
+  at_type: "type",
+  at_group: "group",
 };
 
 /** Derive Supabase column name from settings key. Calculated fields return null. */
@@ -673,7 +828,7 @@ function FieldSection({
 
                     {/* Type badge + option count */}
                     <div className="w-[120px] shrink-0 flex items-center justify-center gap-[6px]">
-                      <FieldTypeBadge fieldType={(field._fieldTypeOverride ?? field.fieldType) as FieldType} />
+                      <FieldTypeBadge fieldType={field.fieldType as FieldType} />
                       {field.options && field.options.length > 0 && (
                         <span
                           className="text-[#98989d] bg-[#f0f2f5] px-[4px] py-[1px] rounded-[4px] shrink-0"
@@ -758,7 +913,7 @@ export function CrmSettingsNativeFields() {
 
   // Pill animation refs
   const pillContainerRef = useRef<HTMLDivElement>(null);
-  const tabRefs = useRef<Record<ObjectType, HTMLButtonElement | null>>({ lead: null, oportunidade: null, contato: null, conta: null });
+  const tabRefs = useRef<Record<ObjectType, HTMLButtonElement | null>>({ lead: null, oportunidade: null, contato: null, conta: null, atividade: null });
   const [pillStyle, setPillStyle] = useState({ left: 0, width: 0 });
 
   // Custom fields from backend
@@ -796,12 +951,12 @@ export function CrmSettingsNativeFields() {
   // State maps for visibility and required
   const [visibilityMap, setVisibilityMap] = useState<Record<string, boolean>>(() => {
     const map: Record<string, boolean> = {};
-    [...LEAD_FIELDS, ...OPPORTUNITY_FIELDS, ...CONTACT_FIELDS, ...ACCOUNT_FIELDS].forEach((f) => { map[f.key] = f.visible; });
+    [...LEAD_FIELDS, ...OPPORTUNITY_FIELDS, ...CONTACT_FIELDS, ...ACCOUNT_FIELDS, ...ACTIVITY_FIELDS].forEach((f) => { map[f.key] = f.visible; });
     return map;
   });
   const [requiredMap, setRequiredMap] = useState<Record<string, boolean>>(() => {
     const map: Record<string, boolean> = {};
-    [...LEAD_FIELDS, ...OPPORTUNITY_FIELDS, ...CONTACT_FIELDS, ...ACCOUNT_FIELDS].forEach((f) => { map[f.key] = f.required; });
+    [...LEAD_FIELDS, ...OPPORTUNITY_FIELDS, ...CONTACT_FIELDS, ...ACCOUNT_FIELDS, ...ACTIVITY_FIELDS].forEach((f) => { map[f.key] = f.required; });
     return map;
   });
   const [labelMap, setLabelMap] = useState<Record<string, string>>({});
@@ -835,14 +990,7 @@ export function CrmSettingsNativeFields() {
             }
             return next;
           });
-          setFieldTypeMap((prev) => {
-            const next = { ...prev };
-            for (const [key, overrides] of Object.entries(config)) {
-              if (overrides.fieldType) next[key] = overrides.fieldType;
-              else delete next[key];
-            }
-            return next;
-          });
+          // fieldType for native fields is defined in code, not loaded from KV overrides
         }
       } catch (err) {
         console.error("Error loading field config:", err);
@@ -873,6 +1021,7 @@ export function CrmSettingsNativeFields() {
     oportunidade: OPPORTUNITY_FIELDS,
     contato: CONTACT_FIELDS,
     conta: ACCOUNT_FIELDS,
+    atividade: ACTIVITY_FIELDS,
   };
 
   const fields = FIELDS_MAP[activeObject];
@@ -908,6 +1057,7 @@ export function CrmSettingsNativeFields() {
     { key: "oportunidade", label: "Oportunidade" },
     { key: "contato", label: "Contato" },
     { key: "conta", label: "Conta" },
+    { key: "atividade", label: "Atividade" },
   ];
 
   return (

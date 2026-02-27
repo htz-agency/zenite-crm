@@ -6,6 +6,8 @@ export interface MinimizedWindow {
   subtitle?: string;
   path: string;          // route to restore
   statusColor?: string;  // optional dot color
+  type?: "page" | "dialer"; // "page" (default) navigates on restore; "dialer" reopens dialer in-place
+  icon?: string;         // optional icon identifier for the taskbar chip
 }
 
 interface MultitaskContextValue {
@@ -13,6 +15,9 @@ interface MultitaskContextValue {
   minimize: (win: MinimizedWindow) => void;
   restore: (id: string) => MinimizedWindow | undefined;
   close: (id: string) => void;
+  /** Global dialer state — when true the DialerPanel is visible */
+  dialerOpen: boolean;
+  setDialerOpen: (open: boolean) => void;
 }
 
 const MultitaskContext = createContext<MultitaskContextValue>({
@@ -20,10 +25,13 @@ const MultitaskContext = createContext<MultitaskContextValue>({
   minimize: () => {},
   restore: () => undefined,
   close: () => {},
+  dialerOpen: false,
+  setDialerOpen: () => {},
 });
 
 export function MultitaskProvider({ children }: { children: ReactNode }) {
   const [minimized, setMinimized] = useState<MinimizedWindow[]>([]);
+  const [dialerOpen, setDialerOpen] = useState(false);
 
   const minimize = useCallback((win: MinimizedWindow) => {
     setMinimized((prev) => {
@@ -46,7 +54,7 @@ export function MultitaskProvider({ children }: { children: ReactNode }) {
   }, []);
 
   return (
-    <MultitaskContext.Provider value={{ minimized, minimize, restore, close }}>
+    <MultitaskContext.Provider value={{ minimized, minimize, restore, close, dialerOpen, setDialerOpen }}>
       {children}
     </MultitaskContext.Provider>
   );

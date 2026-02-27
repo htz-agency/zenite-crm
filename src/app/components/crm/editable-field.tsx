@@ -11,6 +11,9 @@ import {
   Copy,
   Plus,
   GitBranch,
+  MagnifyingGlass,
+  LinkBreak,
+  ArrowSquareOut,
 } from "@phosphor-icons/react";
 import {
   evaluateFormula,
@@ -18,6 +21,8 @@ import {
   type FormulaContext,
 } from "./formula-engine";
 import { ZeniteToggle } from "../zenite-toggle";
+import { useTeamMembers, resolveMember } from "./use-team-members";
+import { useAuth } from "../auth-context";
 
 /* ================================================================== */
 /*  Shared style tokens                                                */
@@ -124,6 +129,8 @@ export interface EditableFieldProps {
   className?: string;
   /** Optional custom icon for the idle edit button (replaces PencilSimple). Pass a React element. */
   editIcon?: React.ReactNode;
+  /** Optional icon displayed after the label text (e.g. TextAlignLeft for textarea). Matches DS FieldShell pattern. */
+  labelIcon?: React.ReactNode;
 }
 
 /* ================================================================== */
@@ -274,11 +281,11 @@ function palette(state: FieldState, isLink: boolean) {
       };
     case "unsaved":
       return {
-        label: "text-[#eac23d]",
-        value: "text-[#eac23d]",
-        border: "border-[#eac23d]",
+        label: "text-[#C4990D]",
+        value: "text-[#C4990D]",
+        border: "border-[#C4990D]",
         btnBg: "bg-[#feedca]",
-        btnText: "text-[#eac23d]",
+        btnText: "text-[#C4990D]",
       };
     case "error":
       return {
@@ -291,7 +298,7 @@ function palette(state: FieldState, isLink: boolean) {
     default:
       return {
         label: "text-[#98989d]",
-        value: isLink ? "text-[#07abde]" : "text-[#4e6987]",
+        value: isLink ? "text-[#0483AB]" : "text-[#4e6987]",
         border: "border-transparent",
         btnBg: "bg-[#dde3ec]",
         btnText: "text-[#4e6987]",
@@ -521,6 +528,222 @@ function MultiPills({
 }
 
 /* ================================================================== */
+/*  Sub-component: User Dropdown (fieldType="user")                    */
+/* ================================================================== */
+
+/** Generate 2-char initials from a full name (e.g. "Marcelo Silva" → "MS") */
+function getInitials(name: string): string {
+  const parts = name.trim().split(/\s+/);
+  if (parts.length >= 2) return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+  return name.charAt(0).toUpperCase();
+}
+
+function UserDropdown({
+  members,
+  selected,
+  onSelect,
+  onClose,
+  anchorRef,
+}: {
+  members: { id: string; name: string; email: string; avatarUrl: string | null }[];
+  selected: string;
+  onSelect: (id: string) => void;
+  onClose: () => void;
+  anchorRef: React.RefObject<HTMLDivElement | null>;
+}) {
+  const ref = useRef<HTMLDivElement>(null);
+  const [search, setSearch] = useState("");
+  const searchRef = useRef<HTMLInputElement>(null);
+  const [pos, setPos] = useState<{ top: number; left: number }>({ top: 0, left: 0 });
+
+  const currentMember = members.find((m) => m.id === selected) ?? null;
+  const isEmpty = !selected;
+
+  useEffect(() => {
+    function updatePos() {
+      if (!anchorRef.current) return;
+      const rect = anchorRef.current.getBoundingClientRect();
+      setPos({ top: rect.bottom + 4, left: rect.left });
+    }
+    updatePos();
+    window.addEventListener("scroll", updatePos, true);
+    window.addEventListener("resize", updatePos);
+    return () => {
+      window.removeEventListener("scroll", updatePos, true);
+      window.removeEventListener("resize", updatePos);
+    };
+  }, [anchorRef]);
+
+  useEffect(() => {
+    function handle(e: MouseEvent) {
+      const target = e.target as Node;
+      if (ref.current && ref.current.contains(target)) return;
+      if (anchorRef.current && anchorRef.current.contains(target)) return;
+      onClose();
+    }
+    document.addEventListener("mousedown", handle);
+    return () => document.removeEventListener("mousedown", handle);
+  }, [onClose, anchorRef]);
+
+  useEffect(() => {
+    setTimeout(() => searchRef.current?.focus(), 50);
+  }, []);
+
+  const filtered = members.filter(
+    (m) =>
+      m.id !== selected &&
+      (m.name.toLowerCase().includes(search.toLowerCase()) ||
+        m.email.toLowerCase().includes(search.toLowerCase())),
+  );
+
+  return createPortal(
+    <div
+      ref={ref}
+      className="fixed z-[99999] bg-white rounded-[12px] overflow-hidden"
+      style={{
+        top: pos.top,
+        left: pos.left,
+        width: 280,
+        boxShadow: "0 8px 30px rgba(0,0,0,0.12), 0 2px 8px rgba(0,0,0,0.08)",
+        ...fontFeature,
+      }}
+      onClick={(e) => e.stopPropagation()}
+    >
+      {/* Current linked user */}
+      {!isEmpty && currentMember && (
+        <>
+          <div className="px-[12px] pt-[10px] pb-[6px]">
+            <span
+              className="text-[#98989d] uppercase block mb-[6px]"
+              style={{ fontSize: 9, fontWeight: 700, letterSpacing: 0.5, ...fontFeature }}
+            >
+              Atribuído atualmente
+            </span>
+            <div className="flex items-center gap-[8px] p-[8px] rounded-[8px] bg-[#f6f7f9]">
+              {currentMember.avatarUrl ? (
+                <img
+                  src={currentMember.avatarUrl}
+                  alt=""
+                  className="size-[28px] rounded-full object-cover shrink-0"
+                />
+              ) : (
+                <div
+                  className="flex items-center justify-center size-[28px] rounded-full shrink-0 bg-[#dde3ec] text-[#4e6987]"
+                  style={{ fontSize: 10, fontWeight: 700, ...fontFeature }}
+                >
+                  {getInitials(currentMember.name)}
+                </div>
+              )}
+              <div className="flex flex-col min-w-0 flex-1">
+                <span
+                  className="text-[#28415c] truncate"
+                  style={{ fontSize: 13, fontWeight: 600, letterSpacing: -0.3, ...fontFeature }}
+                >
+                  {currentMember.name}
+                </span>
+                <span
+                  className="text-[#98989d] truncate"
+                  style={{ fontSize: 10, fontWeight: 500, ...fontFeature }}
+                >
+                  {currentMember.email}
+                </span>
+              </div>
+              <button
+                className="flex items-center justify-center size-[24px] rounded-full hover:bg-[#DCF0FF] text-[#0483AB] transition-colors shrink-0 cursor-pointer"
+                title="Abrir perfil"
+              >
+                <ArrowSquareOut size={13} weight="bold" />
+              </button>
+            </div>
+          </div>
+
+          {/* Separator */}
+          <div className="h-[1px] bg-[#eceef1] mx-[12px]" />
+        </>
+      )}
+
+      {/* Search input — DS style: bg-[#DDE3EC] inner shadow */}
+      <div className="px-[12px] py-[6px]">
+        <div
+          className="flex items-center gap-[8px] h-[34px] px-[10px] rounded-[8px] bg-[#DDE3EC]"
+          style={{ boxShadow: "inset 0px 1px 3px 0px rgba(0,0,0,0.1), inset 0px 1px 2px 0px rgba(0,0,0,0.06)" }}
+        >
+          <MagnifyingGlass size={13} weight="bold" className="text-[#98989d] shrink-0" />
+          <input
+            ref={searchRef}
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            onKeyDown={(e) => { if (e.key === "Escape") onClose(); }}
+            placeholder="Buscar..."
+            className="flex-1 bg-transparent text-[#28415c] outline-none min-w-0 placeholder:text-[#c8cfdb]"
+            style={{ fontSize: 12, fontWeight: 500, letterSpacing: -0.3, ...fontFeature }}
+          />
+        </div>
+      </div>
+
+      {/* Search results — only when search has content */}
+      {search.length > 0 && (
+        <div className="max-h-[160px] overflow-y-auto">
+          {filtered.map((m) => (
+            <button
+              key={m.id}
+              onClick={() => onSelect(m.id)}
+              className="w-full flex items-center gap-[8px] px-[12px] py-[6px] text-left hover:bg-[#f6f7f9] transition-colors cursor-pointer"
+            >
+              {m.avatarUrl ? (
+                <img src={m.avatarUrl} alt="" className="size-[24px] rounded-full object-cover shrink-0" />
+              ) : (
+                <div
+                  className="flex items-center justify-center size-[24px] rounded-full shrink-0 bg-[#dde3ec] text-[#4e6987]"
+                  style={{ fontSize: 8, fontWeight: 700, ...fontFeature }}
+                >
+                  {getInitials(m.name)}
+                </div>
+              )}
+              <div className="flex flex-col min-w-0 flex-1">
+                <span
+                  className="text-[#28415c] truncate"
+                  style={{ fontSize: 13, fontWeight: 500, letterSpacing: -0.3, ...fontFeature }}
+                >
+                  {m.name}
+                </span>
+                <span
+                  className="text-[#98989d] truncate"
+                  style={{ fontSize: 10, fontWeight: 500, ...fontFeature }}
+                >
+                  {m.email}
+                </span>
+              </div>
+            </button>
+          ))}
+          {filtered.length === 0 && (
+            <div className="px-[12px] py-[8px] text-[#98989d]" style={{ fontSize: 12, ...fontFeature }}>
+              Nenhum resultado
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Remove user — destructive button */}
+      {!isEmpty && (
+        <div className="px-[12px] pb-[10px] pt-[2px]">
+          <button
+            onClick={() => onSelect("")}
+            className="flex items-center gap-[6px] w-full h-[32px] px-[10px] rounded-[8px] bg-[#F6F7F9] hover:bg-[#FFEDEB] text-[#F56233] transition-colors cursor-pointer"
+          >
+            <LinkBreak size={13} weight="bold" />
+            <span style={{ fontSize: 12, fontWeight: 600, letterSpacing: -0.2, ...fontFeature }}>
+              Remover atribuição
+            </span>
+          </button>
+        </div>
+      )}
+    </div>,
+    document.body,
+  );
+}
+
+/* ================================================================== */
 /*  Main Component                                                     */
 /* ================================================================== */
 
@@ -545,6 +768,7 @@ export function EditableField({
   contextualValue,
   contextualLabel,
   editIcon,
+  labelIcon,
   required = false,
 }: EditableFieldProps) {
   // Force read-only for calculated & id types
@@ -559,6 +783,18 @@ export function EditableField({
   const isCalc = fieldType === "calculated";
   const isId = fieldType === "id";
   const isContextual = fieldType === "contextual";
+  const isUser = fieldType === "user";
+
+  // ── Current authenticated user (for "Eu" label on user fields) ──
+  const { user: authUser } = useAuth();
+  const currentUserId = authUser?.id ?? null;
+
+  // ── User field: load team members ──
+  const teamMembers = useTeamMembers(isUser);
+  const resolvedUser = useMemo(
+    () => (isUser ? resolveMember(teamMembers, value) : null),
+    [isUser, teamMembers, value],
+  );
 
   // ── Contextual field: resolve options from context ──
   const ctxOptions = useMemo(() => {
@@ -616,6 +852,12 @@ export function EditableField({
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const anchorRef = useRef<HTMLDivElement>(null);
 
+  // ── User field: resolve editValue member (after editValue state) ──
+  const resolvedEditUser = useMemo(
+    () => (isUser ? resolveMember(teamMembers, editValue) : null),
+    [isUser, teamMembers, editValue],
+  );
+
   // Sync external value
   useEffect(() => {
     if (state === "idle") {
@@ -640,7 +882,10 @@ export function EditableField({
     if (!editable) return;
     setOriginalValue(effectiveValue);
     setEditValue(effectiveValue);
-    if (isDropdown) {
+    if (isUser) {
+      setDropdownOpen(true);
+      setState("editing");
+    } else if (isDropdown) {
       setDropdownOpen(true);
       setState("editing");
     } else if (isBool) {
@@ -650,7 +895,7 @@ export function EditableField({
     } else {
       setState("editing");
     }
-  }, [editable, effectiveValue, isBool, isDropdown]);
+  }, [editable, effectiveValue, isBool, isDropdown, isUser]);
 
   const cancel = useCallback(() => {
     setEditValue(originalValue);
@@ -757,7 +1002,7 @@ export function EditableField({
       startEdit();
     } else if (state === "unsaved" && !isBool) {
       setState("editing");
-      if (isDropdown) setDropdownOpen(true);
+      if (isDropdown || isUser) setDropdownOpen(true);
     }
   };
 
@@ -768,6 +1013,14 @@ export function EditableField({
   const displayFormatted = (() => {
     // If formula computed the value, it's already formatted — show as-is
     if (isCalc && computedValue !== null) return computedValue;
+    // User field → resolve member name from UUID
+    if (isUser) {
+      const member = state === "unsaved" || state === "error" ? resolvedEditUser : resolvedUser;
+      if (!member) return displayRaw;
+      // Show "Eu" when the displayed user is the authenticated user
+      const isMe = currentUserId && member.id === currentUserId;
+      return isMe ? "Eu" : member.name;
+    }
     // picklist / combobox / contextual → resolve label from options
     if ((fieldType === "type" || isCombo || isContextual) && resolvedOptions) {
       // For contextual, look in all options (across all contexts) for label
@@ -802,7 +1055,7 @@ export function EditableField({
       onClick={handleContainerClick}
     >
       {/* ── Label row ── */}
-      <div className="flex items-center gap-[2px]">
+      <div className="flex items-center gap-[4px]">
         {ai && (
           <Sparkle
             size={10}
@@ -832,18 +1085,33 @@ export function EditableField({
             {" "}· {contextualLabel}
           </span>
         )}
+        {labelIcon && (
+          <span className="ml-[2px] text-[#98989d]">
+            {labelIcon}
+          </span>
+        )}
       </div>
 
       {/* ── Value row ── */}
       <div className={`flex items-center gap-[6px] min-w-0 overflow-hidden ${isTextarea && state === "editing" ? "" : "min-h-[22px]"}`}>
         {/* Avatar (user) */}
-        {fieldType === "user" && avatar && (
-          <img
-            src={avatar}
-            alt=""
-            className="size-[16px] rounded-full object-cover shrink-0"
-          />
-        )}
+        {isUser && (() => {
+          const member = state === "unsaved" || state === "error" ? resolvedEditUser : resolvedUser;
+          if (member?.avatarUrl) {
+            return <img src={member.avatarUrl} alt="" className="size-[16px] rounded-full object-cover shrink-0" />;
+          }
+          if (member) {
+            return (
+              <span className="size-[16px] rounded-full bg-[#dde3ec] flex items-center justify-center shrink-0 text-[#4e6987]" style={{ fontSize: 7, fontWeight: 700 }}>
+                {getInitials(member.name)}
+              </span>
+            );
+          }
+          if (avatar) {
+            return <img src={avatar} alt="" className="size-[16px] rounded-full object-cover shrink-0" />;
+          }
+          return null;
+        })()}
 
         {/* Association icon */}
         {fieldType === "association" && (
@@ -858,9 +1126,6 @@ export function EditableField({
           />
         )}
 
-        {/* ── Render by field type ── */}
-
-        {/* ID → monospace + copy button */}
         {isId ? (
           <div className="flex items-center gap-[6px]">
             <span
@@ -932,6 +1197,26 @@ export function EditableField({
             </span>
             <CaretDown size={12} weight="bold" className={c.value} />
           </>
+        ) : /* User editing → show name + caret */
+        isUser && state === "editing" ? (
+          <>
+            <span className={c.value} style={valueStyle}>
+              {displayFormatted || <span className="text-[#c8cfdb]">&mdash;</span>}
+            </span>
+            <CaretDown size={12} weight="bold" className={c.value} />
+          </>
+        ) : /* User idle / unsaved / error → DS underline-on-hover */
+        isUser ? (
+          displayFormatted ? (
+            <span
+              className="underline decoration-transparent group-hover/field:decoration-current transition-all duration-200 underline-offset-2 truncate"
+              style={{ ...valueStyle, color: state === "unsaved" ? "#C4990D" : state === "error" ? "#f56233" : "#0483AB" }}
+            >
+              {displayFormatted}
+            </span>
+          ) : (
+            <span className="text-[#c8cfdb]" style={valueStyle}>&mdash;</span>
+          )
         ) : /* Textarea editing → <textarea> */
         isTextarea && state === "editing" ? (
           <textarea
@@ -941,7 +1226,7 @@ export function EditableField({
             onBlur={commitEdit}
             onKeyDown={handleKeyDown}
             rows={3}
-            className={`${c.value} bg-transparent outline-none flex-1 min-w-0 resize-y`}
+            className={`${c.value} w-full resize-none bg-transparent outline-none`}
             style={{ ...valueStyle, lineHeight: "20px" }}
           />
         ) : /* Regular editing → <input> */
@@ -967,7 +1252,7 @@ export function EditableField({
         ) : /* Textarea idle/unsaved → truncated */
         isTextarea ? (
           <span className={`${c.value} line-clamp-2`} style={valueStyle}>
-            {displayFormatted}
+            {displayFormatted || <span className="text-[#c8cfdb]">&mdash;</span>}
           </span>
         ) : (
           /* Default idle / unsaved / error → formatted text */
@@ -1000,6 +1285,28 @@ export function EditableField({
           />,
           document.body,
         )
+      )}
+
+      {/* ── User Dropdown (fieldType="user") ── */}
+      {isUser && dropdownOpen && (
+        <UserDropdown
+          members={teamMembers}
+          selected={editValue}
+          onSelect={(id) => {
+            setEditValue(id);
+            setDropdownOpen(false);
+            if (id !== originalValue) {
+              setState("unsaved");
+            } else {
+              setState("idle");
+            }
+          }}
+          onClose={() => {
+            setDropdownOpen(false);
+            if (editValue === originalValue) setState("idle");
+          }}
+          anchorRef={anchorRef}
+        />
       )}
 
       {/* ── Action button (right) ── */}

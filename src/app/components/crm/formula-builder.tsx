@@ -723,7 +723,7 @@ export function FormulaBuilder({
       <div className="flex items-center justify-between gap-[8px] px-[20px] py-[12px] border-t border-[#ebedf0]">
         <button
           onClick={handleCheckSyntax}
-          className="flex items-center gap-[6px] h-[36px] px-[16px] rounded-[500px] border border-[#ebedf0] hover:border-[#c8cfdb] text-[#4e6987] cursor-pointer transition-colors"
+          className="flex items-center gap-[6px] h-[36px] px-[16px] rounded-full bg-[#F6F7F9] text-[#0483AB] hover:bg-[#DCF0FF] hover:text-[#0483AB] cursor-pointer transition-colors"
         >
           <Lightning size={14} weight="bold" />
           <span style={{ fontSize: 13, fontWeight: 600, letterSpacing: -0.3, ...fontFeature }}>
@@ -735,7 +735,7 @@ export function FormulaBuilder({
           {onCancel && (
             <button
               onClick={onCancel}
-              className="h-[36px] px-[16px] rounded-[500px] text-[#4e6987] hover:bg-[#f6f7f9] cursor-pointer transition-colors"
+              className="h-[36px] px-[16px] rounded-full bg-[#F6F7F9] text-[#F56233] hover:bg-[#FFEDEB] hover:text-[#F56233] cursor-pointer transition-colors"
               style={{ fontSize: 13, fontWeight: 600, letterSpacing: -0.3, ...fontFeature }}
             >
               Cancelar
@@ -744,7 +744,7 @@ export function FormulaBuilder({
           <button
             onClick={handleSave}
             disabled={!expression.trim() || !validation?.valid}
-            className="flex items-center gap-[6px] h-[36px] px-[20px] rounded-[500px] bg-[#28415c] text-[#f6f7f9] hover:bg-[#1a2d40] disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer transition-colors"
+            className="flex items-center gap-[6px] h-[36px] px-[20px] rounded-full bg-[#3CCEA7] text-white hover:bg-[#30B893] disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer transition-colors"
           >
             <CheckCircle size={14} weight="bold" />
             <span style={{ fontSize: 13, fontWeight: 600, letterSpacing: -0.3, ...fontFeature }}>

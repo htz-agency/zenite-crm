@@ -1,0 +1,301 @@
+public.crm_accounts
+
+id — text
+name — text
+type — USER-DEFINED
+stage — USER-DEFINED
+owner — text
+account_number — text
+sector — text
+website — text
+phone — text
+fax — text
+cnpj — text
+description — text
+annual_revenue — numeric
+employees — integer
+ownership — text
+currency — text
+rating — text
+origin — text
+account_site — text
+account_type — text
+parent_account — text
+partner_account — boolean
+sic_code — text
+ticker — text
+billing_street — text
+billing_city — text
+billing_state — text
+billing_zip — text
+billing_country — text
+shipping_street — text
+shipping_city — text
+shipping_state — text
+shipping_zip — text
+shipping_country — text
+first_name — text
+last_name — text
+email — text
+personal_phone — text
+birth_date — date
+cpf — text
+personal_street — text
+personal_city — text
+personal_state — text
+personal_zip — text
+personal_country — text
+preferred_contact — text
+do_not_contact — boolean
+tags — text
+notes — text
+last_activity — text
+last_activity_date — date
+labels — jsonb
+segment — text
+revenue — numeric
+contacts — integer
+comments — integer
+calls — integer
+mkt_campanha — text
+mkt_grupo_anuncios — text
+mkt_anuncio — text
+mkt_ultima_conversao — timestamp with time zone
+mkt_canal — text
+is_deleted — boolean
+last_viewed_date — timestamp with time zone
+last_referenced_date — timestamp with time zone
+system_modstamp — timestamp with time zone
+created_at — timestamp with time zone
+updated_at — timestamp with time zone
+created_by — text
+updated_by — text
+public.crm_activities
+
+id — text
+type — USER-DEFINED
+label — text
+date — text
+group — text
+entity_type — text
+entity_id — text
+created_at — timestamp with time zone
+public.crm_call_records
+
+id — text
+phone — text
+date — text
+avatar_url — text
+entity_type — text
+entity_id — text
+created_at — timestamp with time zone
+public.crm_contacts
+
+id — text
+name — text
+last_name — text
+role — text
+department — text
+company — text
+account — text
+phone — text
+mobile — text
+email — text
+linkedin — text
+website — text
+address — text
+stage — USER-DEFINED
+owner — text
+origin — text
+birth_date — date
+cpf — text
+preferred_contact — text
+do_not_contact — boolean
+tags — text
+notes — text
+last_activity_date — date
+last_activity_date_iso — text
+comments — integer
+calls — integer
+avatar — text
+is_deleted — boolean
+last_viewed_date — timestamp with time zone
+last_referenced_date — timestamp with time zone
+system_modstamp — timestamp with time zone
+created_at — timestamp with time zone
+updated_at — timestamp with time zone
+created_by — text
+updated_by — text
+public.crm_field_history
+
+id — text
+entity_type — text
+entity_id — text
+field_name — text
+old_value — text
+new_value — text
+changed_by — text
+changed_at — timestamp with time zone
+change_source — USER-DEFINED
+public.crm_leads
+
+id — text
+name — text
+role — text
+company — text
+phone — text
+email — text
+address — text
+type — text
+origin — text
+segment — text
+stage — USER-DEFINED
+stage_complement — text
+owner — text
+score — integer
+score_label — text
+qualification_progress — integer
+last_activity — text
+last_activity_date — date
+response_time — text
+website — text
+preferred_contact — text
+annual_revenue — numeric
+employee_count — integer
+conversion_rate — numeric
+is_active — boolean
+tags — text
+notes — text
+qualification_questions — jsonb
+mkt_campanha — text
+mkt_grupo_anuncios — text
+mkt_anuncio — text
+mkt_ultima_conversao — timestamp with time zone
+mkt_canal — text
+is_deleted — boolean
+last_viewed_date — timestamp with time zone
+last_referenced_date — timestamp with time zone
+system_modstamp — timestamp with time zone
+created_at — timestamp with time zone
+updated_at — timestamp with time zone
+created_by — text
+updated_by — text
+lastname — text
+public.crm_opportunities
+
+id — text
+name — text
+company — text
+stage — USER-DEFINED
+stage_complement — text
+tipo — USER-DEFINED
+type — text
+owner — text
+decisor — text
+account — text
+origin — text
+close_date — date
+last_activity — text
+last_activity_date — date
+value — numeric
+score — integer
+score_label — text
+comments — integer
+calls — integer
+labels — jsonb
+most_recent — boolean
+needs_objective — text
+needs_current_situation — text
+needs_challenges — text
+needs_budget — text
+needs_timeline — text
+needs_notes — text
+mkt_campanha — text
+mkt_grupo_anuncios — text
+mkt_anuncio — text
+mkt_ultima_conversao — timestamp with time zone
+mkt_canal — text
+created_at — timestamp with time zone
+updated_at — timestamp with time zone
+created_by — text
+updated_by — text
+tag — text
+public.crm_opportunity_proposals
+
+id — text
+opportunity_id — text
+client_name — text
+total_monthly — numeric
+total_impl — numeric
+active — boolean
+proposal_id — text
+created_at — timestamp with time zone
+updated_at — timestamp with time zone
+created_by — text
+updated_by — text
+public.crm_opportunity_services
+
+service_id — text
+opportunity_id — text
+name — text
+group — USER-DEFINED
+quantity — integer
+base_price — numeric
+impl_price — numeric
+hours — numeric
+public.price_clients
+
+id — uuid
+name — text
+email — text
+company — text
+phone — text
+created_at — timestamp with time zone
+public.price_proposal_services
+
+id — uuid
+proposal_id — text
+service_id — text
+complexity — USER-DEFINED
+recurrence — USER-DEFINED
+seniority — USER-DEFINED
+allocation — USER-DEFINED
+include_impl — boolean
+quantity — integer
+computed_monthly — numeric
+computed_impl — numeric
+computed_hours — integer
+public.price_proposals
+
+id — text
+client_name — text
+status — USER-DEFINED
+notes — text
+global_discount — numeric
+combo_discount_percent — numeric
+combo_label — text
+total_monthly — numeric
+total_impl — numeric
+grand_total — numeric
+total_hours — integer
+created_at — timestamp with time zone
+updated_at — timestamp with time zone
+tag — text
+account — text
+opportunity — text
+contact — text
+public.price_services
+
+id — text
+name — text
+service_group — text
+description — text
+base_price — numeric
+impl_price — numeric
+hours_estimate — numeric
+is_ads — boolean
+complexity_basico — numeric
+complexity_intermediario — numeric
+complexity_avancado — numeric
+sort_order — integer
+active — boolean

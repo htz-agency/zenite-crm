@@ -39,12 +39,19 @@ import {
   SignOut,
   Table,
   Strategy,
+  CalendarBlank,
+  CheckCircle,
+  Phone,
+  NoteBlank,
+  ChatCircle,
+  Envelope,
 } from "@phosphor-icons/react";
 import { useState, useEffect, useRef, type ReactNode } from "react";
 import { AnimatePresence, motion } from "motion/react";
 import { PillButton } from "../pill-button";
 import { useAuth } from "../auth-context";
 import { useCreateLead } from "./create-lead-context";
+import { useCreateActivity } from "./create-activity-context";
 import ImportedLogoZeniteCrm from "../../../imports/LogoZeniteCrm";
 
 /* ------------------------------------------------------------------ */
@@ -119,6 +126,34 @@ const crmRailItems: RailItem[] = [
     ],
   },
   {
+    id: "atividades",
+    icon: <Lightning size={20} weight="duotone" />,
+    activeIcon: <Lightning size={20} weight="fill" />,
+    label: "Atividades",
+    actionButton: { to: "/crm/atividades/nova", label: "Nova Atividade" },
+    sections: [
+      {
+        title: "Tipos de Atividades",
+        items: [
+          { to: "/crm/atividades", icon: <Lightning size={18} weight="duotone" />, activeIcon: <Lightning size={18} weight="fill" />, label: "Todas Atividades" },
+          { to: "/crm/atividades/compromissos", icon: <CalendarBlank size={18} weight="duotone" />, activeIcon: <CalendarBlank size={18} weight="fill" />, label: "Compromissos" },
+          { to: "/crm/atividades/tarefas", icon: <CheckCircle size={18} weight="duotone" />, activeIcon: <CheckCircle size={18} weight="fill" />, label: "Tarefas" },
+          { to: "/crm/atividades/ligacoes", icon: <Phone size={18} weight="duotone" />, activeIcon: <Phone size={18} weight="fill" />, label: "Ligações" },
+          { to: "/crm/atividades/notas", icon: <NoteBlank size={18} weight="duotone" />, activeIcon: <NoteBlank size={18} weight="fill" />, label: "Notas" },
+          { to: "/crm/atividades/mensagens", icon: <ChatCircle size={18} weight="duotone" />, activeIcon: <ChatCircle size={18} weight="fill" />, label: "Mensagens" },
+          { to: "/crm/atividades/emails", icon: <Envelope size={18} weight="duotone" />, activeIcon: <Envelope size={18} weight="fill" />, label: "Emails" },
+        ],
+      },
+      {
+        title: "Ações",
+        items: [
+          { to: "/crm/atividades/calendario", icon: <CalendarBlank size={18} weight="duotone" />, activeIcon: <CalendarBlank size={18} weight="fill" />, label: "Calendário" },
+          { to: "/crm/atividades/configuracoes", icon: <SlidersHorizontal size={18} weight="duotone" />, activeIcon: <SlidersHorizontal size={18} weight="fill" />, label: "Configurar" },
+        ],
+      },
+    ],
+  },
+  {
     id: "dash",
     icon: <ChartBar size={20} weight="duotone" />,
     activeIcon: <ChartBar size={20} weight="fill" />,
@@ -163,6 +198,7 @@ const crmRailItems: RailItem[] = [
           { to: "/crm/ajustes/obj-oportunidades", icon: <SketchLogo size={18} weight="duotone" />, activeIcon: <SketchLogo size={18} weight="fill" />, label: "Oportunidades" },
           { to: "/crm/ajustes/obj-contatos", icon: <IdentificationCard size={18} weight="duotone" />, activeIcon: <IdentificationCard size={18} weight="fill" />, label: "Contatos" },
           { to: "/crm/ajustes/obj-contas", icon: <Building size={18} weight="duotone" />, activeIcon: <Building size={18} weight="fill" />, label: "Contas" },
+          { to: "/crm/ajustes/obj-atividades", icon: <Lightning size={18} weight="duotone" />, activeIcon: <Lightning size={18} weight="fill" />, label: "Atividades" },
         ],
       },
       {
@@ -206,6 +242,8 @@ const zeniteModules: ZeniteModule[] = [
 
 function getFirstRoute(item: RailItem): string | null {
   if (item.directTo) return item.directTo;
+  // For atividades, navigate to the "all" page
+  if (item.id === "atividades") return "/crm/atividades";
   if (item.sections) {
     for (const section of item.sections) {
       if (section.items.length > 0) return section.items[0].to;
@@ -217,6 +255,10 @@ function getFirstRoute(item: RailItem): string | null {
 function railOwnsPath(item: RailItem, pathname: string): boolean {
   if (item.directTo !== undefined) {
     return item.directTo === "/crm" ? pathname === "/crm" : pathname.startsWith(item.directTo);
+  }
+  // Atividades base path ownership
+  if (item.id === "atividades" && (pathname === "/crm/atividades" || pathname.startsWith("/crm/atividades/"))) {
+    return true;
   }
   if (item.actionButton) {
     const ab = item.actionButton.to;
@@ -253,6 +295,30 @@ function getPipeActionButton(pathname: string): { label: string; to: string } {
 }
 
 /* ------------------------------------------------------------------ */
+/*  Dynamic action button for Atividades rail based on active type     */
+/* ------------------------------------------------------------------ */
+
+const ACTIVITY_ACTION_MAP: { prefix: string; label: string }[] = [
+  { prefix: "/crm/atividades/compromissos", label: "Nova Atividade" },
+  { prefix: "/crm/atividades/tarefas",      label: "Nova Atividade" },
+  { prefix: "/crm/atividades/ligacoes",     label: "Nova Atividade" },
+  { prefix: "/crm/atividades/notas",        label: "Nova Atividade" },
+  { prefix: "/crm/atividades/mensagens",    label: "Nova Atividade" },
+  { prefix: "/crm/atividades/emails",       label: "Nova Atividade" },
+];
+
+const DEFAULT_ACTIVITY_ACTION = { label: "Nova Atividade", to: "/crm/atividades/nova" };
+
+function getActivityActionButton(pathname: string): { label: string; to: string } {
+  for (const entry of ACTIVITY_ACTION_MAP) {
+    if (pathname === entry.prefix || pathname.startsWith(entry.prefix + "/")) {
+      return { label: entry.label, to: "/crm/atividades/nova" };
+    }
+  }
+  return DEFAULT_ACTIVITY_ACTION;
+}
+
+/* ------------------------------------------------------------------ */
 /*  CRM Sidebar component                                              */
 /* ------------------------------------------------------------------ */
 
@@ -265,6 +331,7 @@ export function CrmSidebar({ isOpen, onClose }: CrmSidebarProps) {
   const location = useLocation();
   const navigate = useNavigate();
   const { openModal: openCreateLeadModal } = useCreateLead();
+  const { openModal: openCreateActivityModal } = useCreateActivity();
   const panelRef = useRef<HTMLDivElement>(null);
   const appDrawerRef = useRef<HTMLDivElement>(null);
   const { user, signOut } = useAuth();
@@ -577,13 +644,17 @@ export function CrmSidebar({ isOpen, onClose }: CrmSidebarProps) {
       {expandedItem.actionButton && (() => {
         const dynAction = expandedItem.id === "pipes"
           ? getPipeActionButton(location.pathname)
-          : expandedItem.actionButton!;
+          : expandedItem.id === "atividades"
+            ? getActivityActionButton(location.pathname)
+            : expandedItem.actionButton!;
         return (
           <div className="px-4 pt-4 pb-1">
             <PillButton
               onClick={() => {
                 if (dynAction.to === "/crm/novo-lead") {
                   openCreateLeadModal();
+                } else if (dynAction.to === "/crm/atividades/nova") {
+                  openCreateActivityModal();
                 } else {
                   navigate(dynAction.to);
                 }
@@ -619,7 +690,7 @@ export function CrmSidebar({ isOpen, onClose }: CrmSidebarProps) {
                     <NavLink
                       key={subItem.to}
                       to={subItem.to}
-                      end={subItem.to === "/"}
+                      end={subItem.to === "/" || subItem.to === "/crm/atividades"}
                       className={({ isActive }) =>
                         `group/item relative flex items-center gap-[10px] pl-[6px] py-[6px] transition-all cursor-pointer ${
                           isActive

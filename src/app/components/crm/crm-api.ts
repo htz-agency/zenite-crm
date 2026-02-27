@@ -57,7 +57,7 @@ async function apiFetch<T>(path: string, options?: RequestInit): Promise<T> {
         (err?.message && /failed to fetch|network|aborted|timeout/i.test(err.message));
       if (isNetworkError && attempt < MAX_RETRIES - 1) {
         const delay = 800 * (attempt + 1); // 800ms, 1600ms
-        console.warn(`CRM API retry ${attempt + 1}/${MAX_RETRIES} for [${path}] in ${delay}ms`);
+        // Silent retry — no console.warn to avoid noisy logs during cold starts
         await new Promise((r) => setTimeout(r, delay));
         continue;
       }
@@ -265,13 +265,66 @@ export interface DbContact {
 
 export interface DbActivity {
   id: string;
-  type: string;
+  type: string; // compromisso | tarefa | ligacao | nota | mensagem | email
+  subject: string | null;
+  description: string | null;
+  status: string | null; // nao_iniciada | em_andamento | concluida | aguardando | adiada
+  priority: string | null; // baixa | normal | alta
+  due_date: string | null;
+  start_date: string | null;
+  end_date: string | null;
+  completed_at: string | null;
+  assigned_to: string | null; // user id
+  related_to_type: string | null; // lead | oportunidade | conta | contato
+  related_to_id: string | null;
+  related_to_name: string | null;
+  contact_id: string | null;
+  contact_name: string | null;
+  location: string | null;
+  all_day: boolean;
+  is_private: boolean;
+  is_recurring: boolean;
+  recurrence_interval: number | null;
+  recurrence: string | null;
+  call_duration: number | null;
+  call_type: string | null; // entrada | saida | interna
+  call_result: string | null;
+  call_direction: string | null; // saida | entrada
+  phone: string | null;
+  body: string | null; // for notes, messages, email
+  tags: string | null;
+  owner: string | null;
+  /* ── Compromisso fields ── */
+  meet_link: string | null;
+  google_event_id: string | null;
+  timezone: string | null;
+  attendees: any[] | null; // [{name, email, organizer?, rsvp?}]
+  reminder: string | null;
+  busy_status: string | null; // ocupado | livre | provisório
+  visibility: string | null; // padrao | privado | publico
+  calendar_name: string | null;
+  /* ── Mensagem fields ── */
+  channel: string | null; // whatsapp | sms | chat_interno | telegram
+  recipient: string | null;
+  recipient_phone: string | null;
+  sent_at: string | null;
+  read_at: string | null;
+  /* ── Nota fields ── */
+  note_visibility: string | null; // publica | privada
+  shared_with: any[] | null; // array de user IDs
+  version: number | null;
+  /* ── Metadata ── */
+  created_by: string | null;
+  updated_by: string | null;
+  created_at: string;
+  updated_at: string;
+  /* legacy compat */
   label: string | null;
   date: string | null;
   group: string | null;
   entity_type: string | null;
   entity_id: string | null;
-  created_at: string;
+  [key: string]: any;
 }
 
 export interface DbFieldHistory {
@@ -467,19 +520,139 @@ export async function deleteContact(id: string): Promise<void> {
 /*  Activities                                                         */
 /* ================================================================== */
 
+/**
+ * The real `crm_activities` table only has 8 columns:
+ *   id, type, label, date, group, entity_type, entity_id, created_at
+ *
+ * We store all extra rich fields (subject, description, status, priority,
+ * start_date, end_date, location, attendees, …) as a JSON blob inside the
+ * `group` column.  pack / unpack happen transparently in the API helpers
+ * below so the rest of the frontend can keep using the full DbActivity shape.
+ */
+
+/** Flatten a rich DbActivity into the 8 real DB columns. */
+function packActivityForDb(data: Partial<DbActivity>): Record<string, any> {
+  const row: Record<string, any> = {};
+  const extras: Record<string, any> = {};
+
+  // Map convenience fields → real columns
+  row.id = data.id;
+  row.type = data.type;
+  row.label = data.subject || data.label || "";
+  row.date = data.start_date || data.date || "";
+  row.entity_type = data.entity_type || data.related_to_type || "";
+  row.entity_id = data.entity_id || data.related_to_id || "";
+
+  // Gather everything else into `extras`
+  const skip = new Set(["id", "type", "label", "date", "group", "entity_type", "entity_id", "created_at"]);
+  for (const [k, v] of Object.entries(data)) {
+    if (!skip.has(k) && v !== undefined) {
+      extras[k] = v;
+    }
+  }
+
+  row.group = Object.keys(extras).length > 0 ? JSON.stringify(extras) : "";
+
+  // Remove undefined values
+  for (const k of Object.keys(row)) {
+    if (row[k] === undefined) delete row[k];
+  }
+
+  return row;
+}
+
+/** Expand a DB row back into the full DbActivity shape. */
+function unpackActivityFromDb(row: Record<string, any>): DbActivity {
+  let extras: Record<string, any> = {};
+  if (row.group) {
+    try {
+      extras = JSON.parse(row.group);
+    } catch {
+      // group is a plain string (legacy) — keep as-is
+    }
+  }
+
+  return {
+    ...extras,
+    id: row.id,
+    type: row.type,
+    label: row.label,
+    date: row.date,
+    group: row.group,
+    entity_type: row.entity_type,
+    entity_id: row.entity_id,
+    created_at: row.created_at,
+    // Re-map for convenience
+    subject: extras.subject || row.label || "",
+    start_date: extras.start_date || row.date || "",
+    related_to_type: extras.related_to_type || row.entity_type || "",
+    related_to_id: extras.related_to_id || row.entity_id || "",
+  } as DbActivity;
+}
+
 export async function listActivities(): Promise<DbActivity[]> {
-  return apiFetch<DbActivity[]>("/activities");
+  const raw = await apiFetch<any[]>("/activities");
+  return (raw || []).map(unpackActivityFromDb);
 }
 
 export async function listActivitiesByEntity(entityType: string, entityId: string): Promise<DbActivity[]> {
-  return apiFetch<DbActivity[]>(`/activities/entity/${entityType}/${entityId}`);
+  const raw = await apiFetch<any[]>(`/activities/entity/${entityType}/${entityId}`);
+  return (raw || []).map(unpackActivityFromDb);
 }
 
 export async function createActivity(data: Partial<DbActivity>): Promise<DbActivity> {
-  return apiFetch<DbActivity>("/activities", {
+  const packed = packActivityForDb(data);
+  const raw = await apiFetch<any>("/activities", {
     method: "POST",
-    body: JSON.stringify(data),
+    body: JSON.stringify(packed),
   });
+  return unpackActivityFromDb(raw);
+}
+
+export async function patchActivity(id: string, data: Partial<DbActivity>): Promise<DbActivity> {
+  // For PATCH we must merge with existing data because extra fields live in
+  // the `group` JSON column.  A blind pack would overwrite everything.
+  // 1. Fetch current record
+  // 2. Merge patch into it
+  // 3. Re-pack the full merged record
+  // 4. Send only the columns that actually changed
+  try {
+    const currentRaw = await apiFetch<any>(`/activities/${id}`);
+    const current = unpackActivityFromDb(currentRaw);
+
+    // Merge: current values + patch values
+    const merged: Record<string, any> = { ...current, ...data, id };
+
+    // Re-pack full merged record
+    const packed = packActivityForDb(merged as Partial<DbActivity>);
+    delete packed.id;
+    delete packed.created_at;
+
+    const raw = await apiFetch<any>(`/activities/${id}`, {
+      method: "PATCH",
+      body: JSON.stringify(packed),
+    });
+    return unpackActivityFromDb(raw);
+  } catch (err) {
+    // Fallback: try direct pack (may lose group data but won't crash)
+    console.error("patchActivity merge failed, falling back:", err);
+    const packed = packActivityForDb({ ...data, id });
+    delete packed.id;
+    const raw = await apiFetch<any>(`/activities/${id}`, {
+      method: "PATCH",
+      body: JSON.stringify(packed),
+    });
+    return unpackActivityFromDb(raw);
+  }
+}
+
+export async function deleteActivity(id: string): Promise<void> {
+  await apiFetch(`/activities/${id}`, { method: "DELETE" });
+}
+
+export async function getActivity(id: string): Promise<DbActivity> {
+  const raw = await apiFetch<any>(`/activities/${id}`);
+  return unpackActivityFromDb(raw);
 }
 
 /* ================================================================== */
@@ -915,8 +1088,42 @@ export interface ObjectConfig {
   conversionCreateContact?: boolean;
   conversionCreateAccount?: boolean;
   conversionCreateOpportunity?: boolean;
+  // ── Activity-specific settings ──
+  activitySyncGoogleCalendar?: boolean;
+  activityAutoMeetLink?: boolean;
+  activityNotifyOnAssign?: boolean;
+  activityAutoLogCalls?: boolean;
+  activityDefaultTimezone?: string;
+  activityDefaultReminder?: string;
+  activityTaskInactivityDays?: number;
+  /** Per-type overrides keyed by activity type */
+  activityTypeRules?: Record<string, ActivityTypeRule>;
   // Metadata
   updated_at?: string;
+}
+
+export interface ActivityTypeRule {
+  enabled?: boolean;
+  defaultStatus?: string;
+  defaultPriority?: string;
+  requiredFields?: string[];
+  availableStatuses?: { key: string; label: string; color: string }[];
+  /** compromisso */
+  autoMeetLink?: boolean;
+  defaultReminder?: string;
+  defaultBusyStatus?: string;
+  /** tarefa */
+  defaultDueDaysOffset?: number;
+  autoAssignCreator?: boolean;
+  /** ligacao */
+  requirePhone?: boolean;
+  requireResult?: boolean;
+  /** nota */
+  defaultVisibility?: string;
+  autoShareWithTeam?: boolean;
+  /** mensagem */
+  defaultChannel?: string;
+  requireRecipient?: boolean;
 }
 
 export async function getObjectConfig(objectType: string): Promise<ObjectConfig | null> {
@@ -988,6 +1195,28 @@ export async function setUserRole(userId: string, role: string): Promise<void> {
   });
 }
 
+/** Upload avatar image for a user. Returns the new avatar URL. */
+export async function uploadUserAvatar(userId: string, file: File): Promise<string> {
+  const formData = new FormData();
+  formData.append("file", file);
+
+  const res = await fetch(`${BASE_ROOT}/team/members/${userId}/avatar`, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${_authToken || publicAnonKey}`,
+    },
+    body: formData,
+  });
+
+  const json = await res.json();
+  if (!res.ok) {
+    const errMsg = json?.error || `HTTP ${res.status}`;
+    console.error(`Avatar upload error [${userId}]:`, errMsg);
+    throw new Error(errMsg);
+  }
+  return json.data.avatarUrl;
+}
+
 /* ── Permissions matrix ── */
 
 export type PermissionLevel = "todos" | "proprios" | "nenhum";
@@ -1010,4 +1239,63 @@ export async function savePermissions(matrix: PermissionsMatrix): Promise<void> 
     method: "PUT",
     body: JSON.stringify(matrix),
   });
+}
+
+/* ================================================================== */
+/*  Google Tasks — create task via Service Account impersonation        */
+/* ================================================================== */
+
+export async function createGoogleTask(params: {
+  title: string;
+  notes?: string;
+  dueDate?: string;
+  userEmail: string;
+}): Promise<{ taskId: string; title: string; status: string; selfLink: string }> {
+  return rootApiFetch<{ taskId: string; title: string; status: string; selfLink: string }>("/google-tasks/create", {
+    method: "POST",
+    body: JSON.stringify(params),
+  });
+}
+
+/* ================================================================== */
+/*  Teams — CRUD via kv_store                                          */
+/* ================================================================== */
+
+export interface CrmTeam {
+  id: string;
+  name: string;
+  description: string;
+  color: string;
+  icon?: string; // Phosphor icon name, defaults to "UsersThree"
+  members: string[]; // user UUIDs
+  leaderId: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export async function listTeams(): Promise<CrmTeam[]> {
+  const data = await rootApiFetch<CrmTeam[]>("/teams");
+  return Array.isArray(data) ? data : [];
+}
+
+export async function getTeam(id: string): Promise<CrmTeam> {
+  return rootApiFetch<CrmTeam>(`/teams/${id}`);
+}
+
+export async function createTeam(payload: { name: string; description?: string; color?: string; icon?: string; members?: string[]; leaderId?: string | null }): Promise<CrmTeam> {
+  return rootApiFetch<CrmTeam>("/teams", {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function updateTeam(id: string, payload: Partial<Omit<CrmTeam, "id" | "createdAt">>): Promise<CrmTeam> {
+  return rootApiFetch<CrmTeam>(`/teams/${id}`, {
+    method: "PUT",
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function deleteTeam(id: string): Promise<void> {
+  await rootApiFetch<any>(`/teams/${id}`, { method: "DELETE" });
 }

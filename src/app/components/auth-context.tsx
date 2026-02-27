@@ -26,20 +26,7 @@ import { projectId, publicAnonKey } from "../../../utils/supabase/info";
 
 const supabaseUrl = `https://${projectId}.supabase.co`;
 
-export const supabase = createClient(supabaseUrl, publicAnonKey, {
-  auth: {
-    flowType: "pkce",
-    // We handle the code exchange ourselves — disable auto-detection
-    // to avoid race conditions with our explicit exchange.
-    detectSessionInUrl: false,
-  },
-});
-
-/* ================================================================== */
-/*  Preview / iframe detection                                         */
-/* ================================================================== */
-
-function isPreviewEnvironment(): boolean {
+function isPreviewEnv(): boolean {
   try {
     return window.self !== window.top;
   } catch {
@@ -47,7 +34,37 @@ function isPreviewEnvironment(): boolean {
   }
 }
 
-export const IS_PREVIEW = isPreviewEnvironment();
+// In iframe/preview environments, Navigator LockManager is unavailable.
+// Polyfill it before Supabase client is created so GoTrueClient's
+// constructor can find it (the `lock` config option is read too late).
+if (isPreviewEnv() && typeof globalThis.navigator !== "undefined") {
+  if (!navigator.locks) {
+    (navigator as any).locks = {
+      request: async (_name: string, _opts: any, fn?: () => Promise<any>) => {
+        // If called with 2 args (name, fn) — older signature
+        const callback = fn ?? _opts;
+        return callback();
+      },
+    };
+  }
+}
+
+export const supabase = createClient(supabaseUrl, publicAnonKey, {
+  auth: {
+    flowType: "pkce",
+    // We handle the code exchange ourselves — disable auto-detection
+    // to avoid race conditions with our explicit exchange.
+    detectSessionInUrl: false,
+    // In preview/iframe environments, disable session persistence.
+    ...(isPreviewEnv() ? { persistSession: false } : {}),
+  },
+});
+
+/* ================================================================== */
+/*  Preview / iframe detection                                         */
+/* ================================================================== */
+
+export const IS_PREVIEW = isPreviewEnv();
 
 /* ================================================================== */
 /*  Context types                                                      */
@@ -186,6 +203,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           s ? `session for ${s.user?.email}` : "no session"
         );
         validateAndSetSession(s).then(() => setLoading(false));
+      }).catch((err) => {
+        // Handle Navigator LockManager timeout gracefully
+        console.warn("[Zenite Auth] getSession failed (likely lock timeout in iframe):", err?.message || err);
+        setLoading(false);
       });
     }
 

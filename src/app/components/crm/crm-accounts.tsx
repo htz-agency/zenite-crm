@@ -43,6 +43,7 @@ import {
   generateCrmId,
 } from "./crm-api";
 import { useCrmSearch } from "./crm-search-context";
+import { OwnerCell } from "./owner-cell";
 
 /* ------------------------------------------------------------------ */
 /*  Types                                                              */
@@ -235,12 +236,16 @@ function AccountCardContent({
   setActiveMenu,
   menuRef,
   navigate,
+  isSelected,
+  onToggleSelect,
 }: {
   account: Account;
   activeMenu: string | null;
   setActiveMenu: (id: string | null) => void;
   menuRef: React.RefObject<HTMLDivElement | null>;
   navigate: ReturnType<typeof useNavigate>;
+  isSelected?: boolean;
+  onToggleSelect?: (id: string) => void;
 }) {
   return (
     <>
@@ -252,47 +257,67 @@ function AccountCardContent({
         >
           {account.name}
         </p>
-        <div className="relative" ref={activeMenu === account.id ? menuRef : undefined}>
+        <div className="flex items-center gap-[2px]">
+          {/* Selection checkbox */}
           <button
-            onClick={(e) => {
-              e.stopPropagation();
-              setActiveMenu(activeMenu === account.id ? null : account.id);
-            }}
-            className="p-0.5 rounded-full hover:bg-[#DDE3EC] transition-colors opacity-0 group-hover/card:opacity-100"
+            onClick={(e) => { e.stopPropagation(); onToggleSelect?.(account.id); }}
+            className={`p-0.5 rounded-full hover:bg-[#DDE3EC] transition-colors cursor-pointer ${
+              isSelected ? "opacity-100" : "opacity-0 group-hover/card:opacity-100"
+            }`}
           >
-            <DotsThree size={14} className="text-[#4E6987]" weight="bold" />
-          </button>
-          {activeMenu === account.id && (
-            <div className="absolute right-0 top-6 z-30 backdrop-blur-[50px] bg-white flex flex-col gap-[2px] items-start p-[8px] rounded-[20px] min-w-[160px]">
-              <div
-                aria-hidden="true"
-                className="absolute border-[1.4px] border-[rgba(200,207,219,0.6)] border-solid inset-0 pointer-events-none rounded-[20px]"
-                style={{ boxShadow: "0px 2px 4px 0px rgba(18,34,50,0.3)" }}
-              />
-              <button
-                onClick={(e) => { e.stopPropagation(); setActiveMenu(null); navigate(`/crm/contas/${account.id}`); }}
-                className="relative flex gap-[4px] items-center pr-[16px] py-[6px] rounded-[100px] text-[#4e6987] hover:bg-[#f6f7f9] hover:text-[#28415c] transition-colors w-full cursor-pointer"
-              >
-                <div className="flex items-center justify-center shrink-0 w-[28px]"><Eye size={12} /></div>
-                <span className="text-[11px] tracking-[-0.3px] leading-[16px] whitespace-nowrap" style={{ fontWeight: 500, ...fontFeature }}>Visualizar</span>
-              </button>
-              <button
-                onClick={(e) => { e.stopPropagation(); setActiveMenu(null); toast("Editar conta (em breve)"); }}
-                className="relative flex gap-[4px] items-center pr-[16px] py-[6px] rounded-[100px] text-[#4e6987] hover:bg-[#f6f7f9] hover:text-[#28415c] transition-colors w-full cursor-pointer"
-              >
-                <div className="flex items-center justify-center shrink-0 w-[28px]"><PencilSimple size={12} /></div>
-                <span className="text-[11px] tracking-[-0.3px] leading-[16px] whitespace-nowrap" style={{ fontWeight: 500, ...fontFeature }}>Editar</span>
-              </button>
-              <div className="bg-[#dde3ec] h-[1.5px] shrink-0 w-full" />
-              <button
-                onClick={(e) => { e.stopPropagation(); setActiveMenu(null); toast("Excluir conta (em breve)"); }}
-                className="relative flex gap-[4px] items-center pr-[16px] py-[6px] rounded-[100px] text-[#ED5200] hover:bg-[#FFEDEB] transition-colors w-full cursor-pointer"
-              >
-                <div className="flex items-center justify-center shrink-0 w-[28px]"><Trash size={12} /></div>
-                <span className="text-[11px] tracking-[-0.3px] leading-[16px] whitespace-nowrap" style={{ fontWeight: 500, ...fontFeature }}>Excluir</span>
-              </button>
+            <div className={`size-[14px] rounded-full border-[1.5px] transition-colors flex items-center justify-center ${
+              isSelected ? "border-[#07ABDE] bg-[#07ABDE]" : "border-[#c8cfdb] bg-transparent"
+            }`}>
+              {isSelected && (
+                <svg width="8" height="8" viewBox="0 0 8 8" fill="none">
+                  <path d="M1.5 4L3.25 5.75L6.5 2.25" stroke="white" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+              )}
             </div>
-          )}
+          </button>
+          {/* Dots menu */}
+          <div className="relative" ref={activeMenu === account.id ? menuRef : undefined}>
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                setActiveMenu(activeMenu === account.id ? null : account.id);
+              }}
+              className="p-0.5 rounded-full hover:bg-[#DDE3EC] transition-colors opacity-0 group-hover/card:opacity-100"
+            >
+              <DotsThree size={14} className="text-[#4E6987]" weight="bold" />
+            </button>
+            {activeMenu === account.id && (
+              <div className="absolute right-0 top-6 z-30 backdrop-blur-[50px] bg-white flex flex-col gap-[2px] items-start p-[8px] rounded-[20px] min-w-[160px]">
+                <div
+                  aria-hidden="true"
+                  className="absolute border-[1.4px] border-[rgba(200,207,219,0.6)] border-solid inset-0 pointer-events-none rounded-[20px]"
+                  style={{ boxShadow: "0px 2px 4px 0px rgba(18,34,50,0.3)" }}
+                />
+                <button
+                  onClick={(e) => { e.stopPropagation(); setActiveMenu(null); navigate(`/crm/contas/${account.id}`); }}
+                  className="relative flex gap-[4px] items-center pr-[16px] py-[6px] rounded-[100px] text-[#4e6987] hover:bg-[#f6f7f9] hover:text-[#28415c] transition-colors w-full cursor-pointer"
+                >
+                  <div className="flex items-center justify-center shrink-0 w-[28px]"><Eye size={12} /></div>
+                  <span className="text-[11px] tracking-[-0.3px] leading-[16px] whitespace-nowrap" style={{ fontWeight: 500, ...fontFeature }}>Visualizar</span>
+                </button>
+                <button
+                  onClick={(e) => { e.stopPropagation(); setActiveMenu(null); toast("Editar conta (em breve)"); }}
+                  className="relative flex gap-[4px] items-center pr-[16px] py-[6px] rounded-[100px] text-[#4e6987] hover:bg-[#f6f7f9] hover:text-[#28415c] transition-colors w-full cursor-pointer"
+                >
+                  <div className="flex items-center justify-center shrink-0 w-[28px]"><PencilSimple size={12} /></div>
+                  <span className="text-[11px] tracking-[-0.3px] leading-[16px] whitespace-nowrap" style={{ fontWeight: 500, ...fontFeature }}>Editar</span>
+                </button>
+                <div className="bg-[#dde3ec] h-[1.5px] shrink-0 w-full" />
+                <button
+                  onClick={(e) => { e.stopPropagation(); setActiveMenu(null); toast("Excluir conta (em breve)"); }}
+                  className="relative flex gap-[4px] items-center pr-[16px] py-[6px] rounded-[100px] text-[#ED5200] hover:bg-[#FFEDEB] transition-colors w-full cursor-pointer"
+                >
+                  <div className="flex items-center justify-center shrink-0 w-[28px]"><Trash size={12} /></div>
+                  <span className="text-[11px] tracking-[-0.3px] leading-[16px] whitespace-nowrap" style={{ fontWeight: 500, ...fontFeature }}>Excluir</span>
+                </button>
+              </div>
+            )}
+          </div>
         </div>
       </div>
 
@@ -387,12 +412,16 @@ function DraggableAccountCard({
   activeMenu,
   setActiveMenu,
   menuRef,
+  isSelected,
+  onToggleSelect,
 }: {
   account: Account;
   navigate: ReturnType<typeof useNavigate>;
   activeMenu: string | null;
   setActiveMenu: (id: string | null) => void;
   menuRef: React.RefObject<HTMLDivElement | null>;
+  isSelected?: boolean;
+  onToggleSelect?: (id: string) => void;
 }) {
   const [{ isDragging }, dragRef] = useDrag<DragItem, void, { isDragging: boolean }>({
     type: ACCOUNT_CARD_TYPE,
@@ -430,10 +459,12 @@ function DraggableAccountCard({
   return (
     <div
       ref={(node) => { dragRef(node); }}
-      onDoubleClick={() => navigate(`/crm/contas/${account.id}`)}
-      className="bg-white p-[12px] cursor-grab hover:shadow-[0px_2px_4px_0px_rgba(18,34,50,0.3)] transition-all active:bg-[#F6F7F9] group/card rounded-[16px] active:cursor-grabbing"
+      onClick={() => navigate(`/crm/contas/${account.id}`)}
+      className={`bg-white p-[12px] cursor-grab hover:shadow-[0px_2px_4px_0px_rgba(18,34,50,0.3)] transition-all active:bg-[#F6F7F9] group/card rounded-[16px] active:cursor-grabbing ${
+        isSelected ? "ring-2 ring-[#07ABDE] ring-inset" : ""
+      }`}
     >
-      <AccountCardContent account={account} activeMenu={activeMenu} setActiveMenu={setActiveMenu} menuRef={menuRef} navigate={navigate} />
+      <AccountCardContent account={account} activeMenu={activeMenu} setActiveMenu={setActiveMenu} menuRef={menuRef} navigate={navigate} isSelected={isSelected} onToggleSelect={onToggleSelect} />
     </div>
   );
 }
@@ -540,8 +571,8 @@ function StageHeaderPill({ stage }: { stage: AccountStage }) {
 export function CrmAccounts() {
   const navigate = useNavigate();
   const { query: globalSearch } = useCrmSearch();
-  const [accounts, setAccounts] = useState<Account[]>(mockAccounts);
-  const [loading, setLoading] = useState(false);
+  const [accounts, setAccounts] = useState<Account[]>([]);
+  const [loading, setLoading] = useState(true);
   const [viewMode, setViewMode] = useState<"kanban" | "tabela">("kanban");
   const [titleMenuOpen, setTitleMenuOpen] = useState(false);
   const [activeMenu, setActiveMenu] = useState<string | null>(null);
@@ -556,7 +587,9 @@ export function CrmAccounts() {
         const dbRows = await listAccounts();
         if (cancelled) return;
         if (dbRows.length === 0) {
-          /* DB empty — keep mock data, seed in background */
+          /* DB empty — use mock data, seed in background */
+          setAccounts(mockAccounts);
+          setLoading(false);
           const seedRows = mockAccounts.map((a) => ({
             id: a.id, name: a.name, segment: a.segment, cnpj: a.cnpj,
             billing_street: a.address, revenue: a.revenue, stage: a.stage,
@@ -571,6 +604,9 @@ export function CrmAccounts() {
         setAccounts(dbRows.map(dbAccountToFrontend));
       } catch (err) {
         console.warn("Could not load accounts from server, using local data:", err);
+        setAccounts(mockAccounts);
+      } finally {
+        if (!cancelled) setLoading(false);
       }
     })();
     return () => { cancelled = true; };
@@ -780,13 +816,13 @@ export function CrmAccounts() {
           {/* Right: action buttons */}
           <div className="hidden lg:flex items-center gap-[15px]">
             <div className="flex items-center gap-[10px] bg-[#f6f7f9] rounded-[100px] h-[44px] px-[5px] py-[0px]">
-              <button className="flex items-center justify-center size-[32px] rounded-full hover:bg-[#DCF0FF] active:bg-[#07abde] active:text-[#f6f7f9] transition-colors text-[#28415c]">
+              <button className="flex items-center justify-center size-[32px] rounded-full bg-transparent text-[#0483AB] hover:bg-[#DCF0FF] hover:text-[#0483AB] transition-colors cursor-pointer">
                 <LinkIcon size={18} />
               </button>
-              <button className="flex items-center justify-center size-[32px] rounded-full hover:bg-[#DCF0FF] active:bg-[#07abde] active:text-[#f6f7f9] transition-colors text-[#28415c]">
+              <button className="flex items-center justify-center size-[32px] rounded-full bg-transparent text-[#0483AB] hover:bg-[#DCF0FF] hover:text-[#0483AB] transition-colors cursor-pointer">
                 <ArrowSquareDownRight size={18} />
               </button>
-              <button className="flex items-center justify-center size-[32px] rounded-full hover:bg-[#DCF0FF] active:bg-[#07abde] active:text-[#f6f7f9] transition-colors text-[#28415c]">
+              <button className="flex items-center justify-center size-[32px] rounded-full bg-transparent text-[#0483AB] hover:bg-[#DCF0FF] hover:text-[#0483AB] transition-colors cursor-pointer">
                 <Columns size={18} />
               </button>
             </div>
@@ -867,7 +903,7 @@ export function CrmAccounts() {
           {/* + button */}
           <button
             onClick={() => toast("Nova conta (em breve)")}
-            className="relative flex items-center justify-center w-[34px] h-[34px] rounded-full bg-[#dcf0ff] text-[#28415c] hover:bg-[#cce7fb] transition-colors cursor-pointer"
+            className="relative flex items-center justify-center w-[34px] h-[34px] rounded-full bg-[#F6F7F9] text-[#0483AB] hover:bg-[#DCF0FF] hover:text-[#0483AB] transition-colors cursor-pointer"
           >
             <Plus size={16} weight="bold" />
           </button>
@@ -904,6 +940,8 @@ export function CrmAccounts() {
                           activeMenu={activeMenu}
                           setActiveMenu={setActiveMenu}
                           menuRef={menuRef}
+                          isSelected={selectedIds.has(account.id)}
+                          onToggleSelect={toggleSelect}
                         />
                       ))
                     )}
@@ -988,7 +1026,7 @@ export function CrmAccounts() {
                               <Building size={10} weight="fill" className="text-[#3ccea7]" />
                             </div>
                             <span
-                              className="truncate text-[#07abde]"
+                              className="truncate text-[#0483AB]"
                               style={{ fontSize: 12, fontWeight: 500, letterSpacing: -0.5, ...fontFeature }}
                             >
                               {account.name}
@@ -1016,19 +1054,7 @@ export function CrmAccounts() {
                             {formatCurrency(account.revenue)}
                           </div>
                           {/* Proprietário */}
-                          <div className="flex items-center gap-[8px] truncate">
-                            <img
-                              alt=""
-                              className="shrink-0 size-[18px] rounded-full object-cover"
-                              src={imgAvatar}
-                            />
-                            <span
-                              className="truncate text-[#07abde]"
-                              style={{ fontSize: 12, fontWeight: 500, letterSpacing: -0.5, ...fontFeature }}
-                            >
-                              {account.owner}
-                            </span>
-                          </div>
+                          <OwnerCell ownerId={account.owner} />
                           {/* Última Atividade */}
                           <div
                             className="truncate text-[#28415c]"

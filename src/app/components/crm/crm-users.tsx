@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef, useCallback } from "react";
 import {
   UsersThree,
   MagnifyingGlass,
@@ -16,8 +16,9 @@ import {
   SealCheck,
   WarningCircle,
   X,
+  Camera,
 } from "@phosphor-icons/react";
-import { listTeamMembers, getUserRole, setUserRole, type TeamMember } from "./crm-api";
+import { listTeamMembers, getUserRole, setUserRole, uploadUserAvatar, type TeamMember } from "./crm-api";
 import { useAuth } from "../auth-context";
 
 /* ================================================================== */
@@ -155,17 +156,39 @@ function UserDetailPanel({
   onRoleChange,
   onClose,
   isCurrentUser,
+  onAvatarChange,
 }: {
   member: TeamMember;
   role: string;
   onRoleChange: (role: string) => void;
   onClose: () => void;
   isCurrentUser: boolean;
+  onAvatarChange: (userId: string, newUrl: string) => void;
 }) {
   const roleDef = getRoleDef(role);
   const isOnline = member.lastSignInAt
     ? Date.now() - new Date(member.lastSignInAt).getTime() < 15 * 60 * 1000
     : false;
+
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [uploading, setUploading] = useState(false);
+
+  const handleAvatarUpload = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    try {
+      setUploading(true);
+      const newUrl = await uploadUserAvatar(member.id, file);
+      onAvatarChange(member.id, newUrl);
+    } catch (err: any) {
+      console.error("Error uploading avatar:", err);
+    } finally {
+      setUploading(false);
+      // Reset input so the same file can be re-selected
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    }
+  }, [member.id, onAvatarChange]);
 
   return (
     <div
@@ -183,7 +206,16 @@ function UserDetailPanel({
           <X size={14} weight="bold" className="text-[#98989d]" />
         </button>
 
-        <div className="relative mb-3">
+        <div className="relative mb-3 group/avatar">
+          {/* Hidden file input */}
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/jpeg,image/png,image/webp,image/gif"
+            className="hidden"
+            onChange={handleAvatarUpload}
+          />
+
           {member.avatarUrl ? (
             <img
               src={member.avatarUrl}
@@ -199,9 +231,23 @@ function UserDetailPanel({
               {(member.name || "U").charAt(0).toUpperCase()}
             </div>
           )}
+
+          {/* Camera overlay — visible on hover */}
+          <button
+            onClick={() => !uploading && fileInputRef.current?.click()}
+            className="absolute inset-0 flex items-center justify-center rounded-full bg-black/0 group-hover/avatar:bg-black/40 transition-all cursor-pointer"
+            title="Alterar foto"
+          >
+            {uploading ? (
+              <SpinnerGap size={20} className="text-white animate-spin" />
+            ) : (
+              <Camera size={20} weight="fill" className="text-white opacity-0 group-hover/avatar:opacity-100 transition-opacity" />
+            )}
+          </button>
+
           {/* Online indicator */}
           <div
-            className={`absolute bottom-0 right-0 size-[14px] rounded-full border-[2px] border-white ${
+            className={`absolute bottom-0 right-0 size-[14px] rounded-full border-[2px] border-white z-10 ${
               isOnline ? "bg-[#3CCEA7]" : "bg-[#C8CFDB]"
             }`}
           />
@@ -438,18 +484,32 @@ export function CrmUsers() {
         <div className="flex-1 bg-white rounded-[16px] overflow-hidden flex flex-col min-w-0 min-h-0">
           {/* Search bar */}
           <div className="px-5 pt-4 pb-3 shrink-0">
-            <div
-              className="flex items-center gap-2 h-[36px] px-3 rounded-[10px] bg-[#F6F7F9]"
-              style={{ border: "0.7px solid rgba(200,207,219,0.5)" }}
-            >
-              <MagnifyingGlass size={15} className="text-[#98989d] shrink-0" />
-              <input
-                type="text"
-                placeholder="Buscar por nome ou email..."
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                className="flex-1 bg-transparent outline-none text-[#28415C] placeholder:text-[#C8CFDB]"
-                style={{ fontSize: 13, fontWeight: 500, letterSpacing: -0.3, ...ff }}
+            <div className="relative flex items-center justify-between w-full h-[40px] px-[10px] bg-[#DDE3EC] rounded-full">
+              <div className="flex items-center gap-[10px]">
+                <div className="flex items-center justify-center shrink-0 size-[28px]">
+                  <MagnifyingGlass size={16} weight="bold" className="text-[#4E6987]" />
+                </div>
+                <input
+                  type="text"
+                  placeholder="Buscar por nome ou email..."
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  className="bg-transparent border-none outline-none text-[#122232] placeholder-[#4E6987] w-full"
+                  style={{ fontSize: 13, fontWeight: 500, letterSpacing: -0.3, ...ff }}
+                />
+              </div>
+              {search && (
+                <button
+                  onClick={() => setSearch("")}
+                  className="flex items-center justify-center shrink-0 size-[28px] rounded-full hover:bg-[#C8CFDB] transition-colors cursor-pointer"
+                >
+                  <X size={12} weight="bold" className="text-[#4E6987]" />
+                </button>
+              )}
+              {/* Inner shadow overlay */}
+              <div
+                className="absolute inset-0 pointer-events-none rounded-[inherit]"
+                style={{ boxShadow: "inset 0px -0.5px 1px 0px rgba(255,255,255,0.3), inset 0px -0.5px 1px 0px rgba(255,255,255,0.25), inset 0px 1.5px 4px 0px rgba(0,0,0,0.08), inset 0px 1.5px 4px 0px rgba(0,0,0,0.1)" }}
               />
             </div>
           </div>
@@ -612,6 +672,12 @@ export function CrmUsers() {
             onRoleChange={(r) => handleRoleChange(selectedMember.id, r)}
             onClose={() => setSelectedMember(null)}
             isCurrentUser={currentUser?.id === selectedMember.id}
+            onAvatarChange={(userId, newUrl) => {
+              const newMembers = members.map(m => m.id === userId ? { ...m, avatarUrl: newUrl } : m);
+              setMembers(newMembers);
+              // Also update the selectedMember so the panel reflects the change immediately
+              setSelectedMember(prev => prev?.id === userId ? { ...prev, avatarUrl: newUrl } : prev);
+            }}
           />
         )}
       </div>

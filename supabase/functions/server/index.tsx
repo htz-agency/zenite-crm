@@ -4,6 +4,8 @@ import { logger } from "npm:hono/logger";
 import { createClient } from "jsr:@supabase/supabase-js@2.49.8";
 import { crm } from "./crm-routes.tsx";
 import { sheets } from "./sheets-routes.tsx";
+import { gcal } from "./google-calendar-routes.tsx";
+import { gtasks } from "./google-tasks-routes.tsx";
 import * as kv from "./kv_store.tsx";
 
 const app = new Hono();
@@ -30,6 +32,22 @@ app.use(
 );
 
 const PREFIX = "/make-server-b0da2601";
+
+/* ── Idempotent bucket creation for avatars ── */
+const AVATAR_BUCKET = "make-b0da2601-avatars";
+(async () => {
+  try {
+    const db = supabase();
+    const { data: buckets } = await db.storage.listBuckets();
+    const bucketExists = buckets?.some((bucket: any) => bucket.name === AVATAR_BUCKET);
+    if (!bucketExists) {
+      await db.storage.createBucket(AVATAR_BUCKET, { public: false });
+      console.log(`Created storage bucket: ${AVATAR_BUCKET}`);
+    }
+  } catch (err) {
+    console.log("Error creating avatar bucket (non-fatal):", err);
+  }
+})();
 
 // Health check endpoint
 app.get(`${PREFIX}/health`, (c) => {
@@ -98,6 +116,90 @@ app.get(`${PREFIX}/me`, async (c) => {
   } catch (err) {
     console.log("Unexpected error verifying user:", err);
     return c.json({ error: `Unexpected error: ${err}` }, 500);
+  }
+});
+
+// ────────────────────────────────────
+//  TEAM — Upload user avatar
+// ────────────────────────────────────
+
+app.post(`${PREFIX}/team/members/:userId/avatar`, async (c) => {
+  try {
+    const userId = c.req.param("userId");
+    const db = supabase();
+
+    // Parse multipart form data
+    const formData = await c.req.formData();
+    const file = formData.get("file") as File | null;
+    if (!file) {
+      return c.json({ error: "No file uploaded" }, 400);
+    }
+
+    // Validate file type
+    const allowedTypes = ["image/jpeg", "image/png", "image/webp", "image/gif"];
+    if (!allowedTypes.includes(file.type)) {
+      return c.json({ error: `Invalid file type: ${file.type}. Allowed: ${allowedTypes.join(", ")}` }, 400);
+    }
+
+    // Max 5MB
+    if (file.size > 5 * 1024 * 1024) {
+      return c.json({ error: "File too large. Max 5MB." }, 400);
+    }
+
+    const ext = file.name.split(".").pop() || "jpg";
+    const filePath = `${userId}/avatar-${Date.now()}.${ext}`;
+
+    // Delete old avatar files for this user
+    try {
+      const { data: existing } = await db.storage.from(AVATAR_BUCKET).list(userId);
+      if (existing && existing.length > 0) {
+        const paths = existing.map((f: any) => `${userId}/${f.name}`);
+        await db.storage.from(AVATAR_BUCKET).remove(paths);
+      }
+    } catch (err) {
+      console.log("Warning: could not clean old avatars:", err);
+    }
+
+    // Upload new file
+    const arrayBuffer = await file.arrayBuffer();
+    const { error: uploadError } = await db.storage
+      .from(AVATAR_BUCKET)
+      .upload(filePath, arrayBuffer, {
+        contentType: file.type,
+        upsert: true,
+      });
+
+    if (uploadError) {
+      console.log("Error uploading avatar to storage:", uploadError);
+      return c.json({ error: `Upload error: ${uploadError.message}` }, 500);
+    }
+
+    // Create a signed URL (valid for 10 years = effectively permanent)
+    const { data: signedData, error: signedError } = await db.storage
+      .from(AVATAR_BUCKET)
+      .createSignedUrl(filePath, 60 * 60 * 24 * 365 * 10);
+
+    if (signedError || !signedData?.signedUrl) {
+      console.log("Error creating signed URL:", signedError);
+      return c.json({ error: `Signed URL error: ${signedError?.message || "unknown"}` }, 500);
+    }
+
+    const avatarUrl = signedData.signedUrl;
+
+    // Update user_metadata with the new avatar_url
+    const { error: updateError } = await db.auth.admin.updateUserById(userId, {
+      user_metadata: { avatar_url: avatarUrl },
+    });
+
+    if (updateError) {
+      console.log("Error updating user avatar_url in metadata:", updateError);
+      return c.json({ error: `Error updating user metadata: ${updateError.message}` }, 500);
+    }
+
+    return c.json({ data: { avatarUrl } });
+  } catch (err) {
+    console.log("Unexpected error uploading avatar:", err);
+    return c.json({ error: `Unexpected error uploading avatar: ${err}` }, 500);
   }
 });
 
@@ -191,6 +293,93 @@ app.put(`${PREFIX}/permissions`, async (c) => {
   } catch (err) {
     console.log("Error saving permissions:", err);
     return c.json({ error: `Error saving permissions: ${err}` }, 500);
+  }
+});
+
+// ────────────────────────────────────
+//  TEAMS — CRUD for CRM teams (kv_store)
+// ────────────────────────────────────
+
+app.get(`${PREFIX}/teams`, async (c) => {
+  try {
+    const raw = await kv.getByPrefix("crm_team:");
+    const teams = (raw ?? []).map((r: any) => {
+      try { return typeof r === "string" ? JSON.parse(r) : r; } catch { return r; }
+    });
+    return c.json({ data: teams });
+  } catch (err) {
+    console.log("Error listing teams:", err);
+    return c.json({ error: `Error listing teams: ${err}` }, 500);
+  }
+});
+
+app.get(`${PREFIX}/teams/:id`, async (c) => {
+  try {
+    const id = c.req.param("id");
+    const raw = await kv.get(`crm_team:${id}`);
+    if (!raw) return c.json({ error: "Team not found" }, 404);
+    const team = typeof raw === "string" ? JSON.parse(raw) : raw;
+    return c.json({ data: team });
+  } catch (err) {
+    console.log("Error getting team:", err);
+    return c.json({ error: `Error getting team: ${err}` }, 500);
+  }
+});
+
+app.post(`${PREFIX}/teams`, async (c) => {
+  try {
+    const body = await c.req.json();
+    if (!body?.name) return c.json({ error: "Team name is required" }, 400);
+    const id = `TEAM-${crypto.randomUUID().slice(0, 8).toUpperCase()}`;
+    const now = new Date().toISOString();
+    const team = {
+      id,
+      name: body.name,
+      description: body.description ?? "",
+      color: body.color ?? "#4E6987",
+      icon: body.icon ?? "UsersThree",
+      members: body.members ?? [],
+      leaderId: body.leaderId ?? null,
+      createdAt: now,
+      updatedAt: now,
+    };
+    await kv.set(`crm_team:${id}`, team);
+    return c.json({ data: team }, 201);
+  } catch (err) {
+    console.log("Error creating team:", err);
+    return c.json({ error: `Error creating team: ${err}` }, 500);
+  }
+});
+
+app.put(`${PREFIX}/teams/:id`, async (c) => {
+  try {
+    const id = c.req.param("id");
+    const existing = await kv.get(`crm_team:${id}`);
+    if (!existing) return c.json({ error: "Team not found" }, 404);
+    const old = typeof existing === "string" ? JSON.parse(existing) : existing;
+    const body = await c.req.json();
+    const updated = {
+      ...old,
+      ...body,
+      id, // preserve id
+      updatedAt: new Date().toISOString(),
+    };
+    await kv.set(`crm_team:${id}`, updated);
+    return c.json({ data: updated });
+  } catch (err) {
+    console.log("Error updating team:", err);
+    return c.json({ error: `Error updating team: ${err}` }, 500);
+  }
+});
+
+app.delete(`${PREFIX}/teams/:id`, async (c) => {
+  try {
+    const id = c.req.param("id");
+    await kv.del(`crm_team:${id}`);
+    return c.json({ data: { deleted: true } });
+  } catch (err) {
+    console.log("Error deleting team:", err);
+    return c.json({ error: `Error deleting team: ${err}` }, 500);
   }
 });
 
@@ -415,5 +604,11 @@ app.route("/", crm);
 
 // Mount Google Sheets routes
 app.route("/", sheets);
+
+// Mount Google Calendar / Meet routes
+app.route("/", gcal);
+
+// Mount Google Tasks routes
+app.route("/", gtasks);
 
 Deno.serve(app.fetch);

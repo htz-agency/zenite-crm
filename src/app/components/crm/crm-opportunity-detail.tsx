@@ -70,8 +70,10 @@ import {
   SectionToggle,
   StageBar,
   ScoreCard,
-  CallLogPanel,
+  ActivityFeedPanel,
+  useEntityActivities,
 } from "./crm-detail-shared";
+import { usePermissions } from "./permission-context";
 
 /* ------------------------------------------------------------------ */
 /*  Types & Config                                                     */
@@ -210,12 +212,17 @@ const emptyOp: OpData = {
 /* mockProducts removed — TabServices now fetches from Price catalog API */
 
 const mockActivities: Activity[] = [
-  { id: "a1", type: "compromisso", label: "Compromisso", date: "04/01/2024 09:30", group: "FUTURO" },
-  { id: "a2", type: "tarefa", label: "Tarefa", date: "04/01/2024 09:30", group: "JULHO" },
-  { id: "a3", type: "ligacao", label: "Ligação", date: "04/01/2024 09:30", group: "JULHO" },
-  { id: "a4", type: "nota", label: "Nota", date: "04/01/2024 09:30", group: "JULHO" },
-  { id: "a5", type: "mensagem", label: "Mensagem", date: "04/01/2024 09:30", group: "JUNHO" },
-  { id: "a6", type: "email", label: "Email", date: "04/01/2024 09:30", group: "2022" },
+  { id: "a1", type: "compromisso", label: "Compromisso", date: "04/01/2024 09:30", group: "FUTURO", title: "Reunião de alinhamento", meetingLink: "meet.google.com/xyz-abcd-efg", attendees: ["joao@htz.agency", "cliente@empresa.com"] },
+  { id: "a9", type: "compromisso", label: "Compromisso", date: "05/03/2026 10:30", group: "FUTURO", title: "Apresentação de proposta final", meetingLink: "zoom.us/j/987654321", attendees: ["cfo@empresa.com", "joao@htz.agency"], duration: "1h", notes: "Levar planilha comparativa de preços" },
+  { id: "a10", type: "compromisso", label: "Compromisso", date: "15/12/2023 14:00", group: "DEZEMBRO", title: "Análise de requisitos", attendees: ["cto@empresa.com", "dev-lead@empresa.com"], duration: "1h30", location: "Escritório do cliente" },
+  { id: "a11", type: "compromisso", label: "Compromisso", date: "02/10/2023 11:00", group: "OUTUBRO", title: "Reunião de discovery", meetingLink: "meet.google.com/disc-1234", attendees: ["cliente@empresa.com"], notes: "Mapear dores e oportunidades" },
+  { id: "a2", type: "tarefa", label: "Tarefa", date: "04/01/2024 09:30", group: "JULHO", title: "Preparar deck de apresentação", notes: "Incluir casos de uso e métricas" },
+  { id: "a3", type: "ligacao", label: "Ligação", date: "04/01/2024 09:30", group: "JULHO", title: "Negociação de valores", duration: "18 minutos e 22 segundos" },
+  { id: "a4", type: "nota", label: "Nota", date: "04/01/2024 09:30", group: "JULHO", notes: "Decisor principal é o CFO. Preferência por contrato anual." },
+  { id: "a7", type: "nota", label: "Nota", date: "25/06/2024 15:00", group: "JUNHO", notes: "A área jurídica do cliente solicitou revisão de 8 cláusulas contratuais, incluindo SLA de 99.9%, multa por descumprimento de prazo e propriedade intelectual dos entregáveis. O time comercial da HTZ vai agendar uma call com o nosso jurídico para alinhar as contrapropostas. O prazo interno do cliente para aprovação do contrato é até o final de julho — se perdermos essa janela, o budget será realocado para o próximo fiscal year." },
+  { id: "a8", type: "nota", label: "Nota", date: "18/06/2024 09:45", group: "JUNHO", notes: "VP de Vendas aprovou desconto de 12% se fecharmos até fim do mês. Enviar proposta revisada até sexta." },
+  { id: "a5", type: "mensagem", label: "Mensagem", date: "04/01/2024 09:30", group: "JUNHO", title: "Envio de material complementar" },
+  { id: "a6", type: "email", label: "Email", date: "04/01/2024 09:30", group: "2022", title: "Contrato para assinatura", attendees: ["juridico@empresa.com"] },
 ];
 
 const mockCalls: CallRecord[] = [
@@ -234,123 +241,7 @@ function formatCurrency(value: number): string {
   return value.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 }
 
-/* ------------------------------------------------------------------ */
-/*  Activity Panel                                                     */
-/* ------------------------------------------------------------------ */
 
-function ActivityPanel({ activities }: { activities: Activity[] }) {
-  const [activityTab, setActivityTab] = useState<"feed" | "engajamento">("feed");
-
-  const grouped: { group: string; items: Activity[] }[] = [];
-  activities.forEach((a) => {
-    const existing = grouped.find((g) => g.group === a.group);
-    if (existing) existing.items.push(a);
-    else grouped.push({ group: a.group, items: [a] });
-  });
-
-  return (
-    <div className="flex flex-col h-full">
-      {/* Tab bar */}
-      <div className="p-[12px] pb-0">
-        <div
-          className="flex gap-[4px] h-[44px] items-center justify-center overflow-hidden p-[4px] rounded-[100px] bg-[#f6f7f9] relative"
-          style={{
-            boxShadow:
-              "inset 0px -0.5px 1px 0px rgba(255,255,255,0.3), inset 0px -0.5px 1px 0px rgba(255,255,255,0.25), inset 1px 1.5px 4px 0px rgba(0,0,0,0.08), inset 1px 1.5px 4px 0px rgba(0,0,0,0.1)",
-          }}
-        >
-          {(["feed", "engajamento"] as const).map((tab) => {
-            const isActive = activityTab === tab;
-            return (
-              <button
-                key={tab}
-                onClick={() => setActivityTab(tab)}
-                className={`flex-1 h-[36px] flex items-center justify-center gap-[3px] rounded-[20px] cursor-pointer transition-colors duration-200 relative z-[1] ${
-                  isActive ? "" : "text-[#98989d] hover:text-[#4E6987] hover:bg-[#e8eaee]"
-                }`}
-              >
-                {isActive && (
-                  <motion.div
-                    layoutId="activity-tab-active"
-                    className="absolute inset-0 bg-[#28415C] rounded-[20px]"
-                    transition={{ type: "spring", stiffness: 500, damping: 35, mass: 0.8 }}
-                    style={{
-                      border: "0.5px solid rgba(200,207,219,0.6)",
-                      boxShadow: "0px 2px 4px 0px rgba(18,34,50,0.3)",
-                    }}
-                  />
-                )}
-                {tab === "feed" && (
-                  <ListBullets size={15} weight={isActive ? "fill" : "duotone"} className={`relative z-[1] ${isActive ? "text-[#f6f7f9]" : ""}`} />
-                )}
-                {tab === "engajamento" && (
-                  <FunnelSimple size={15} weight={isActive ? "fill" : "duotone"} className={`relative z-[1] ${isActive ? "text-[#f6f7f9]" : ""}`} />
-                )}
-                <span
-                  className={`relative z-[1] uppercase ${isActive ? "text-[#f6f7f9]" : ""}`}
-                  style={{ fontSize: 10, fontWeight: 700, letterSpacing: 0.5, lineHeight: "20px", ...fontFeature }}
-                >
-                  {tab}
-                </span>
-              </button>
-            );
-          })}
-        </div>
-      </div>
-
-      {/* Activity header */}
-      <div className="flex items-center gap-[6px] px-[20px] py-[12px]">
-        <div className="flex items-center gap-[6px] flex-1 min-w-0 cursor-pointer">
-          <div className="flex items-center justify-center size-[28px] rounded-[8px] bg-[#dde3ec] shrink-0">
-            <ListBullets size={17} weight="duotone" className="text-[#4e6987]" />
-          </div>
-          <span
-            className="text-[#4e6987]"
-            style={{ fontSize: 18, fontWeight: 500, letterSpacing: -0.5, lineHeight: "22px", ...fontFeature }}
-          >
-            Atividades
-          </span>
-          <CaretDown size={14} weight="bold" className="text-[#4e6987] shrink-0" />
-        </div>
-        <button className="flex items-center justify-center size-[28px] rounded-full text-[#28415c] hover:bg-[#f6f7f9] transition-colors cursor-pointer">
-          <FunnelSimple size={17} weight="duotone" />
-        </button>
-        <button className="flex items-center justify-center size-[28px] rounded-full text-[#28415c] hover:bg-[#f6f7f9] transition-colors cursor-pointer">
-          <GearSix size={17} weight="duotone" />
-        </button>
-      </div>
-
-      {/* Activity list */}
-      <div className="flex-1 overflow-auto px-[4px]">
-        <div className="flex flex-col gap-[4px] items-center">
-          {grouped.map((group) => (
-            <div key={group.group} className="w-full flex flex-col gap-[4px] items-center">
-              <span
-                className="text-[#64676c] uppercase text-center"
-                style={{ fontSize: 10, fontWeight: 700, letterSpacing: 0.5, lineHeight: "20px", ...fontFeature }}
-              >
-                {group.group}
-              </span>
-              {group.items.map((a) => (
-                <ActivityItem key={a.id} activity={a} />
-              ))}
-            </div>
-          ))}
-        </div>
-      </div>
-
-      {/* Add Activity Button */}
-      <div className="p-[16px] flex justify-center">
-        <button className="flex items-center justify-center gap-[4px] h-[40px] px-[20px] rounded-[500px] bg-[#DCF0FF] text-[#28415c] cursor-pointer hover:bg-[#c4e4fa] transition-colors">
-          <Plus size={16} weight="bold" />
-          <span style={{ fontSize: 15, fontWeight: 500, letterSpacing: -0.5, lineHeight: "22px", ...fontFeature }}>
-            Adicionar atividade
-          </span>
-        </button>
-      </div>
-    </div>
-  );
-}
 
 /* ------------------------------------------------------------------ */
 /*  Tab: Detalhes                                                      */
@@ -996,8 +887,8 @@ function TabServices({
         <EditableField key="svcQty" label="SERVIÇOS" value={String(totalQty)} editable={false} />
         <div className="flex-1" />
         <button
-          className="h-[40px] px-[20px] rounded-[500px] text-[#28415c] cursor-pointer hover:bg-[#f6f7f9] transition-colors"
-          style={{ border: "1.5px solid #C8CFDB", fontSize: 15, fontWeight: 500, letterSpacing: -0.5, ...fontFeature }}
+          className="h-[40px] px-[20px] rounded-full bg-[#3CCEA7] text-white hover:bg-[#30B893] cursor-pointer transition-all"
+          style={{ fontSize: 15, fontWeight: 600, letterSpacing: -0.5, ...fontFeature }}
         >
           Salvar alterações
         </button>
@@ -1828,6 +1719,7 @@ export function CrmOpportunityDetail() {
   const [opLoading, setOpLoading] = useState(true);
   const { customFields, customValues, updateCustomValue } = useCustomFields("oportunidade", id);
   const { isVisible: v, isRequired: rq, getLabel: fl } = useFieldVisibility("oportunidade");
+  const { can } = usePermissions();
   const [accountId, setAccountId] = useState<string | null>(null);
   const [decisorId, setDecisionMakerId] = useState<string | null>(null);
 
@@ -1986,8 +1878,9 @@ export function CrmOpportunityDetail() {
         entity_type: "oportunidade",
         entity_id: op.id,
         field_name: "stage",
-        current_value: op.stage,
-        created_at: threeDaysAgo.toISOString(),
+        old_value: null,
+        new_value: op.stage,
+        changed_at: threeDaysAgo.toISOString(),
         changed_by: op.createdBy,
       });
       setFieldHistoryEntries(
@@ -2092,9 +1985,14 @@ export function CrmOpportunityDetail() {
     closeDate: op.closeDate,
   };
 
-  // Right panel type depends on active tab
-  const rightPanel: "calls" | "activities" | "none" =
-    activeTab === "detalhes" ? "calls" : activeTab === "propostas" || activeTab === "servicos" || activeTab === "relacionado" || activeTab === "contrato" ? "activities" : "none";
+  // Right panel visibility depends on active tab
+  const showRightPanel = activeTab === "detalhes" || activeTab === "propostas" || activeTab === "servicos" || activeTab === "relacionado" || activeTab === "contrato";
+
+  // Load real activities for this opportunity (falls back to mock data)
+  const {
+    activities: realActivities,
+    groupedActivities,
+  } = useEntityActivities("oportunidade", id, mockActivities);
 
   if (opLoading) {
     return (
@@ -2156,8 +2054,12 @@ export function CrmOpportunityDetail() {
             <div className="hidden lg:flex items-center gap-[10px] bg-[#f6f7f9] rounded-[100px] h-[44px] px-[5px] py-[0px]">
               <ActionButton><Tag size={18} weight="bold" /></ActionButton>
               <ActionButton><ClockCounterClockwise size={18} weight="bold" /></ActionButton>
-              <ActionButton><PencilSimple size={18} weight="bold" /></ActionButton>
-              <ActionButton><Trash size={18} weight="bold" /></ActionButton>
+              {can("oportunidades", "editar", op.owner) && (
+                <ActionButton><PencilSimple size={18} weight="bold" /></ActionButton>
+              )}
+              {can("oportunidades", "excluir", op.owner) && (
+                <ActionButton><Trash size={18} weight="bold" /></ActionButton>
+              )}
               <ActionButton><LinkIcon size={18} weight="bold" /></ActionButton>
               <ActionButton><CopySimple size={18} weight="bold" /></ActionButton>
               <ActionButton onClick={() => {
@@ -2301,10 +2203,14 @@ export function CrmOpportunityDetail() {
         </div>
 
         {/* RIGHT COLUMN (independent, below header) */}
-        {rightPanel !== "none" && (
+        {showRightPanel && (
           <div className="hidden xl:flex flex-col w-[306px] shrink-0 bg-white rounded-[16px] overflow-hidden">
-            {rightPanel === "calls" && <CallLogPanel calls={mockCalls} layoutId="op-call-tab" />}
-            {rightPanel === "activities" && <ActivityPanel activities={mockActivities} />}
+            <ActivityFeedPanel
+              activities={realActivities}
+              groupedActivities={groupedActivities}
+              layoutId="op-activity-tab"
+              calls={mockCalls}
+            />
           </div>
         )}
       </div>
